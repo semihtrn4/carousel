@@ -1,0 +1,31 @@
+{
+  "expo": {
+    "name": "Carousel Studio",
+    "slug": "carousel-studio",
+    "version": "1.0.0",
+    "scheme": "carousel-studio",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "backgroundColor": "#0D0D0D"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.carouselstudio.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0D0D0D"
+      },
+      "package": "com.carouselstudio.app"
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-image-picker",
+      "expo-media-library"
+    ]
+  }
+}
