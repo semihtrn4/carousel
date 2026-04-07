@@ -25,28 +25,24 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - name: Setup Expo
-        uses: expo/expo-github-action@v8
-        with:
-          expo-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
-
       - name: Install dependencies
         run: npm install
 
       - name: Prebuild Android
-        run: npx expo prebuild --platform android --clean
+        run: npx expo prebuild --platform android --clean --no-install
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
       - name: Make gradlew executable
         run: chmod +x android/gradlew
 
-      - name: Build APK
-        run: ./gradlew assembleRelease --no-daemon
+      - name: Build debug APK
+        run: ./gradlew assembleDebug --no-daemon
         working-directory: android
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: carousel-studio-apk
-          path: android/app/build/outputs/apk/release/app-release.apk
+          name: carousel-studio-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
