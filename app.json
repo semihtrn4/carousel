@@ -26,6 +26,7 @@
       "expo-router",
       "expo-image-picker",
       "expo-media-library",
+      "react-native-reanimated",
       [
         "expo-build-properties",
         {
