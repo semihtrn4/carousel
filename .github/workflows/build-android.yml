@@ -46,14 +46,11 @@ jobs:
 
       - name: Patch Kotlin version to 2.0.21
         run: |
-          echo "=== Before patch ==="
-          grep -i "kotlin" android/build.gradle || echo "no kotlin line"
-          sed -i 's/kotlinVersion = "[0-9.]*"/kotlinVersion = "2.0.21"/' android/build.gradle
-          sed -i 's/kotlin_version = "[0-9.]*"/kotlin_version = "2.0.21"/' android/build.gradle
-          sed -i "s/ext.kotlinVersion = '[0-9.]*'/ext.kotlinVersion = '2.0.21'/" android/build.gradle
-          echo "=== After patch ==="
-          grep -i "kotlin" android/build.gradle || echo "no kotlin line found - check manually"
           cat android/build.gradle
+          sed -i 's/kotlinVersion = "1.9.24"/kotlinVersion = "2.0.21"/' android/build.gradle
+          sed -i "s/kotlinVersion = '1.9.24'/kotlinVersion = '2.0.21'/" android/build.gradle
+          sed -i 's/kotlin_version = "1.9.24"/kotlin_version = "2.0.21"/' android/build.gradle
+          grep -i "kotlin" android/build.gradle
 
       - name: Make gradlew executable
         run: chmod +x android/gradlew
