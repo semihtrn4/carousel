@@ -41,54 +41,33 @@ jobs:
           find node_modules/react-native/sdks -type f -name "hbc-*" | xargs chmod +x 2>/dev/null || true
 
       - name: Expo Prebuild
-        # NODE_ENV=production burada YOK — prebuild aşamasında gerekli değil
         run: node node_modules/expo/bin/cli prebuild --platform android --clean
         env:
           NODE_OPTIONS: "--max-old-space-size=4096"
 
-      - name: Patch expo-modules-core source files
+      - name: Patch Kotlin version to 2.0.0
+        # Expo SDK 52 + RN 0.76: KSP Kotlin 2.0+ gerektiriyor
+        # 2.0.0, expo-modules-core ve react-native-gradle-plugin ile uyumlu en stabil sürüm
         run: |
-          python3 -c "
-          import os
-
-          cssprops = 'node_modules/expo-modules-core/android/src/main/java/expo/modules/kotlin/views/decorators/CSSProps.kt'
-          if os.path.exists(cssprops):
-              content = open(cssprops).read()
-              old = 'BoxShadow.parse(shadows.getMap(i), view.context)'
-              new = 'BoxShadow.parse(shadows.getMap(i))'
-              if old in content:
-                  open(cssprops, 'w').write(content.replace(old, new))
-                  print('CSSProps.kt: patch OK')
-              else:
-                  print('CSSProps.kt: already patched or not found')
-
-          flags = 'node_modules/expo-modules-core/android/src/main/java/expo/modules/rncompatibility/ReactNativeFeatureFlags.kt'
-          if os.path.exists(flags):
-              fixed = 'package expo.modules.rncompatibility\n\nobject ReactNativeFeatureFlags {\n  val enableBridgelessArchitecture = true\n}\n'
-              open(flags, 'w').write(fixed)
-              print('ReactNativeFeatureFlags.kt: patch OK')
-          "
-
-      - name: Patch Kotlin version to 1.9.25
-        # 2.1.20 → 1.9.25: RN 0.76.x + Expo 54 ekosistemi için doğru sürüm
-        # gesture-handler, safe-area-context ve expo-modules-core 2.1.x ile kırılıyor
-        run: |
-          echo "=== Patching Kotlin to 1.9.25 ==="
-          sed -i 's/kotlinVersion = "[0-9.]*"/kotlinVersion = "1.9.25"/' android/build.gradle || true
-          sed -i 's/kotlin_version = "[0-9.]*"/kotlin_version = "1.9.25"/' android/build.gradle || true
+          echo "=== Patching Kotlin to 2.0.0 ==="
+          sed -i 's/kotlinVersion = "[^"]*"/kotlinVersion = "2.0.0"/' android/build.gradle || true
+          sed -i 's/kotlin_version = "[^"]*"/kotlin_version = "2.0.0"/' android/build.gradle || true
           sed -i '/^kotlinVersion=/d' android/gradle.properties || true
-          echo "kotlinVersion=1.9.25" >> android/gradle.properties
-          echo "=== gradle.properties ==="
+          echo "kotlinVersion=2.0.0" >> android/gradle.properties
+          echo "=== android/gradle.properties ==="
           cat android/gradle.properties
+          echo "=== android/build.gradle (kotlinVersion satırı) ==="
+          grep -i kotlin android/build.gradle || true
 
       - name: Patch Gradle wrapper to 8.10.2
         run: |
-          sed -i 's|distributions/gradle-[0-9.]*-bin.zip|distributions/gradle-8.10.2-bin.zip|g' android/gradle/wrapper/gradle-wrapper.properties
+          sed -i 's|distributions/gradle-[0-9.]*-bin.zip|distributions/gradle-8.10.2-bin.zip|g' \
+            android/gradle/wrapper/gradle-wrapper.properties
           cat android/gradle/wrapper/gradle-wrapper.properties
 
       - name: Remove deprecated enableBundleCompression
         run: |
-          sed -i '/enableBundleCompression/d' android/app/build.gradle
+          sed -i '/enableBundleCompression/d' android/app/build.gradle || true
 
       - name: Fix hermesc after prebuild
         run: |
