@@ -46,32 +46,52 @@ jobs:
           NODE_OPTIONS: "--max-old-space-size=4096"
           NODE_ENV: "production"
 
-      - name: Patch expo-modules-core CSSProps (BoxShadow uyumsuzluğu)
+      - name: Patch expo-modules-core CSSProps.kt (BoxShadow uyumsuzlugu)
         run: |
           CSSPROPS="node_modules/expo-modules-core/android/src/main/java/expo/modules/kotlin/views/decorators/CSSProps.kt"
           if [ -f "$CSSPROPS" ]; then
             echo "=== CSSProps.kt patch uygulanıyor ==="
-            # BoxShadow.parse() fazla argüman sorununu düzelt - sadece ilk argümanı bırak
-            sed -i 's/BoxShadow\.Companion\.parse(\([^,)]*\),[^)]*)/BoxShadow.Companion.parse(\1)/g' "$CSSPROPS" || true
-            sed -i 's/BoxShadow\.parse(\([^,)]*\),[^)]*)/BoxShadow.parse(\1)/g' "$CSSPROPS" || true
-            echo "=== CSSProps.kt satır 144-148 ==="
-            sed -n '144,148p' "$CSSPROPS"
+            python3 - << 'PYEOF'
+          import sys
+          path = "node_modules/expo-modules-core/android/src/main/java/expo/modules/kotlin/views/decorators/CSSProps.kt"
+          content = open(path).read()
+          old = "BoxShadow.parse(shadows.getMap(i), view.context)"
+          new = "BoxShadow.parse(shadows.getMap(i))"
+          if old in content:
+              fixed = content.replace(old, new)
+              open(path, "w").write(fixed)
+              print("CSSProps.kt patch basarili: ikinci arguman kaldirildi")
+          else:
+              print("CSSProps.kt: hedef string bulunamadi, kontrol ediliyor...")
+              lines = [l for l in content.split("\n") if "BoxShadow.parse" in l]
+              print("Mevcut BoxShadow.parse satirlari:", lines)
+          PYEOF
+            echo "=== Sonuc ==="
+            grep "BoxShadow.parse" "$CSSPROPS"
           else
-            echo "CSSProps.kt bulunamadı"
+            echo "CSSProps.kt bulunamadi"
           fi
 
-      - name: Patch expo-modules-core ReactNativeFeatureFlags (enableBridgelessArchitecture)
+      - name: Patch expo-modules-core ReactNativeFeatureFlags.kt
         run: |
           FLAGS="node_modules/expo-modules-core/android/src/main/java/expo/modules/rncompatibility/ReactNativeFeatureFlags.kt"
           if [ -f "$FLAGS" ]; then
             echo "=== ReactNativeFeatureFlags.kt patch uygulanıyor ==="
-            # enableBridgelessArchitecture referansını kaldır
-            sed -i 's/ReactNativeFeatureFlags\.enableBridgelessArchitecture/false/g' "$FLAGS" || true
-            sed -i '/enableBridgelessArchitecture/d' "$FLAGS" || true
-            echo "=== ReactNativeFeatureFlags.kt içeriği ==="
+            python3 - << 'PYEOF'
+          path = "node_modules/expo-modules-core/android/src/main/java/expo/modules/rncompatibility/ReactNativeFeatureFlags.kt"
+          fixed = """package expo.modules.rncompatibility
+
+object ReactNativeFeatureFlags {
+  val enableBridgelessArchitecture = true
+}
+"""
+          open(path, "w").write(fixed)
+          print("ReactNativeFeatureFlags.kt patch basarili")
+          PYEOF
+            echo "=== Sonuc ==="
             cat "$FLAGS"
           else
-            echo "ReactNativeFeatureFlags.kt bulunamadı"
+            echo "ReactNativeFeatureFlags.kt bulunamadi"
           fi
 
       - name: Patch Kotlin version to 2.0.21
