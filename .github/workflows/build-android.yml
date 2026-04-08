@@ -35,17 +35,24 @@ jobs:
         run: npm install --legacy-peer-deps
 
       - name: Expo Prebuild
-        run: |
-          node node_modules/expo/bin/cli prebuild --platform android --clean --no-install
+        run: node node_modules/expo/bin/cli prebuild --platform android --clean --no-install
         env:
           NODE_OPTIONS: "--max-old-space-size=4096"
-          EXPO_NO_DOTENV: "1"
-          EXPO_NO_TELEMETRY: "1"
 
       - name: Patch Kotlin version to 2.0.21
         run: |
-          echo "kotlinVersion=2.0.21" >> android/gradle.properties
-          cat android/gradle.properties
+          sed -i 's/kotlinVersion = "[0-9.]*"/kotlinVersion = "2.0.21"/' android/build.gradle
+          grep "kotlinVersion" android/build.gradle
+
+      - name: Patch Gradle wrapper to 8.10.2
+        run: |
+          sed -i 's|distributions/gradle-[0-9.]*-bin.zip|distributions/gradle-8.10.2-bin.zip|g' android/gradle/wrapper/gradle-wrapper.properties
+          cat android/gradle/wrapper/gradle-wrapper.properties
+
+      - name: Remove deprecated enableBundleCompression
+        run: |
+          sed -i '/enableBundleCompression/d' android/app/build.gradle
+          echo "Patched app/build.gradle"
 
       - name: Make gradlew executable
         run: chmod +x android/gradlew
@@ -55,11 +62,10 @@ jobs:
         run: |
           ./gradlew assembleRelease \
             --no-daemon \
-            --stacktrace \
-            -Dorg.gradle.jvmargs="-Xmx6g -XX:MaxMetaspaceSize=1g" \
+            --warning-mode none \
+            -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=512m" \
             -Dorg.gradle.parallel=false
         env:
-          NODE_OPTIONS: "--max-old-space-size=4096"
           GRADLE_OPTS: "-Dorg.gradle.daemon=false"
 
       - name: Upload APK
