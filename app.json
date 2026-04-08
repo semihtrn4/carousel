@@ -26,15 +26,15 @@
       "expo-router",
       "expo-image-picker",
       "expo-media-library",
-      "react-native-reanimated",
       [
         "expo-build-properties",
         {
           "android": {
-            "kotlinVersion": "1.9.25",
-            "compileSdkVersion": 35,
-            "targetSdkVersion": 35,
-            "minSdkVersion": 24
+            "kotlinVersion": "2.1.20",
+            "compileSdkVersion": 36,
+            "targetSdkVersion": 36,
+            "minSdkVersion": 24,
+            "buildToolsVersion": "36.0.0"
           }
         }
       ]
