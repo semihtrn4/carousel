@@ -47,12 +47,11 @@ jobs:
         run: node node_modules/expo/bin/cli prebuild --platform android --clean --no-install
         env:
           NODE_OPTIONS: "--max-old-space-size=4096"
+          NODE_ENV: "production"
 
       - name: Patch Kotlin version to 2.0.21
         run: |
-          echo "=== Searching for kotlin in build.gradle ==="
-          grep -n "kotlin" android/build.gradle || true
-          grep -n "kotlin" android/gradle.properties || true
+          echo "=== Patching Kotlin version ==="
           sed -i 's/kotlinVersion = "[0-9.]*"/kotlinVersion = "2.0.21"/' android/build.gradle || true
           sed -i 's/kotlin_version = "[0-9.]*"/kotlin_version = "2.0.21"/' android/build.gradle || true
           sed -i 's/kotlinVersion=[0-9.]*/kotlinVersion=2.0.21/' android/gradle.properties || true
@@ -89,6 +88,7 @@ jobs:
             -Dorg.gradle.parallel=false
         env:
           GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+          NODE_ENV: "production"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
