@@ -41,10 +41,10 @@ jobs:
           find node_modules/react-native/sdks -type f -name "hbc-*" | xargs chmod +x 2>/dev/null || true
 
       - name: Expo Prebuild
-        run: node node_modules/expo/bin/cli prebuild --platform android --clean --no-install
+        # NODE_ENV=production burada YOK — prebuild aşamasında gerekli değil
+        run: node node_modules/expo/bin/cli prebuild --platform android --clean
         env:
           NODE_OPTIONS: "--max-old-space-size=4096"
-          NODE_ENV: "production"
 
       - name: Patch expo-modules-core source files
         run: |
@@ -69,14 +69,15 @@ jobs:
               print('ReactNativeFeatureFlags.kt: patch OK')
           "
 
-      - name: Patch Kotlin version to 2.1.20
+      - name: Patch Kotlin version to 1.9.25
+        # 2.1.20 → 1.9.25: RN 0.76.x + Expo 54 ekosistemi için doğru sürüm
+        # gesture-handler, safe-area-context ve expo-modules-core 2.1.x ile kırılıyor
         run: |
-          echo "=== Patching Kotlin to 2.1.20 ==="
-          sed -i 's/kotlinVersion = "[0-9.]*"/kotlinVersion = "2.1.20"/' android/build.gradle || true
-          sed -i 's/kotlin_version = "[0-9.]*"/kotlin_version = "2.1.20"/' android/build.gradle || true
-          sed -i 's/kotlinVersion=[0-9.]*/kotlinVersion=2.1.20/' android/gradle.properties || true
+          echo "=== Patching Kotlin to 1.9.25 ==="
+          sed -i 's/kotlinVersion = "[0-9.]*"/kotlinVersion = "1.9.25"/' android/build.gradle || true
+          sed -i 's/kotlin_version = "[0-9.]*"/kotlin_version = "1.9.25"/' android/build.gradle || true
           sed -i '/^kotlinVersion=/d' android/gradle.properties || true
-          echo "kotlinVersion=2.1.20" >> android/gradle.properties
+          echo "kotlinVersion=1.9.25" >> android/gradle.properties
           echo "=== gradle.properties ==="
           cat android/gradle.properties
 
@@ -103,7 +104,7 @@ jobs:
           ./gradlew assembleRelease \
             --no-daemon \
             --warning-mode none \
-            -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=512m" \
+            -Dorg.gradle.jvmargs="-Xmx3g -XX:MaxMetaspaceSize=512m" \
             -Dorg.gradle.parallel=false
         env:
           GRADLE_OPTS: "-Dorg.gradle.daemon=false"
