@@ -36,6 +36,16 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
+      - name: Find Expo CLI
+        run: |
+          echo "=== node_modules/@expo ==="
+          ls node_modules/@expo/ || echo "no @expo folder"
+          echo "=== expo package ==="
+          ls node_modules/expo/bin/ || echo "no expo/bin"
+          echo "=== find expo cli ==="
+          find node_modules -name "cli.js" -path "*expo*" 2>/dev/null | head -20
+          find node_modules -name "expo" -type f 2>/dev/null | head -20
+
       - name: Expo Prebuild
         run: |
           node node_modules/@expo/cli/build/bin/cli prebuild --platform android --clean --no-install
