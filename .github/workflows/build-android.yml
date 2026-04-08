@@ -30,11 +30,11 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
-      - name: Fix Permissions (Yetki hatasını çözer)
+      - name: Fix Permissions
         run: chmod -R +x node_modules/.bin
 
       - name: Prebuild Android
-        run: npm exec expo prebuild -- --platform android --clean
+        run: npx expo prebuild --platform android --clean
 
       - name: Build APK with Gradle
         working-directory: android
