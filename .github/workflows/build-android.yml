@@ -36,11 +36,20 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
-      - name: Fix node_modules bin permissions
-        run: chmod -R +x node_modules/.bin/
+      - name: Install Expo CLI globally
+        run: |
+          npm install -g @expo/cli@latest
+          EXPO_PATH=$(npm root -g)/@expo/cli/bin/cli
+          echo "EXPO_CLI=$EXPO_PATH" >> $GITHUB_ENV
+          ls -la $EXPO_PATH || echo "not found at $EXPO_PATH"
+          which expo || echo "expo not in PATH"
+          ls $(npm bin -g) | grep expo || echo "no expo in global bin"
 
       - name: Expo Prebuild
-        run: node node_modules/@expo/cli/build/bin/cli prebuild --platform android --clean --no-install
+        run: |
+          GLOBAL_BIN=$(npm bin -g)
+          chmod +x $GLOBAL_BIN/expo || true
+          $GLOBAL_BIN/expo prebuild --platform android --clean --no-install
         env:
           NODE_OPTIONS: "--max-old-space-size=4096"
 
