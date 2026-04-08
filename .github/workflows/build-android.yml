@@ -31,48 +31,23 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install dependencies
-        run: npm install --legacy-peer-deps
+      - name: Clear Gradle cache (important)
+        run: |
+          rm -rf ~/.gradle/caches
+          rm -rf ~/.gradle/wrapper
 
-      - name: Fix Hermes hermesc permissions
+      - name: Install dependencies
+        run: npm install
+
+      - name: Fix Hermes permissions
         run: |
           find node_modules/react-native/sdks -type f -name "hermesc" | xargs chmod +x 2>/dev/null || true
           find node_modules/react-native/sdks -type f -name "*.sh" | xargs chmod +x 2>/dev/null || true
-          find node_modules/react-native/sdks -type f -name "hbc-*" | xargs chmod +x 2>/dev/null || true
 
       - name: Expo Prebuild
-        run: node node_modules/expo/bin/cli prebuild --platform android --clean
+        run: npx expo prebuild --platform android --clean
         env:
           NODE_OPTIONS: "--max-old-space-size=4096"
-
-      - name: Patch Kotlin version to 2.0.0
-        # Expo SDK 52 + RN 0.76: KSP Kotlin 2.0+ gerektiriyor
-        # 2.0.0, expo-modules-core ve react-native-gradle-plugin ile uyumlu en stabil sürüm
-        run: |
-          echo "=== Patching Kotlin to 2.0.0 ==="
-          sed -i 's/kotlinVersion = "[^"]*"/kotlinVersion = "2.0.0"/' android/build.gradle || true
-          sed -i 's/kotlin_version = "[^"]*"/kotlin_version = "2.0.0"/' android/build.gradle || true
-          sed -i '/^kotlinVersion=/d' android/gradle.properties || true
-          echo "kotlinVersion=2.0.0" >> android/gradle.properties
-          echo "=== android/gradle.properties ==="
-          cat android/gradle.properties
-          echo "=== android/build.gradle (kotlinVersion satırı) ==="
-          grep -i kotlin android/build.gradle || true
-
-      - name: Patch Gradle wrapper to 8.10.2
-        run: |
-          sed -i 's|distributions/gradle-[0-9.]*-bin.zip|distributions/gradle-8.10.2-bin.zip|g' \
-            android/gradle/wrapper/gradle-wrapper.properties
-          cat android/gradle/wrapper/gradle-wrapper.properties
-
-      - name: Remove deprecated enableBundleCompression
-        run: |
-          sed -i '/enableBundleCompression/d' android/app/build.gradle || true
-
-      - name: Fix hermesc after prebuild
-        run: |
-          find node_modules/react-native/sdks -type f -name "hermesc" | xargs chmod +x 2>/dev/null || true
-          find node_modules/react-native/sdks -type f -name "*.sh" | xargs chmod +x 2>/dev/null || true
 
       - name: Make gradlew executable
         run: chmod +x android/gradlew
@@ -94,4 +69,4 @@ jobs:
         with:
           name: android-release-apk
           path: android/app/build/outputs/apk/release/*.apk
-          if-no-files-found: warn
+          if-no-files-found: error
