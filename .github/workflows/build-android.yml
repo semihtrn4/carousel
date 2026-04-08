@@ -46,53 +46,34 @@ jobs:
           NODE_OPTIONS: "--max-old-space-size=4096"
           NODE_ENV: "production"
 
-      - name: Patch expo-modules-core CSSProps.kt (BoxShadow uyumsuzlugu)
+      - name: Patch expo-modules-core source files
         run: |
-          CSSPROPS="node_modules/expo-modules-core/android/src/main/java/expo/modules/kotlin/views/decorators/CSSProps.kt"
-          if [ -f "$CSSPROPS" ]; then
-            echo "=== CSSProps.kt patch uygulanıyor ==="
-            python3 - << 'PYEOF'
-          import sys
-          path = "node_modules/expo-modules-core/android/src/main/java/expo/modules/kotlin/views/decorators/CSSProps.kt"
-          content = open(path).read()
-          old = "BoxShadow.parse(shadows.getMap(i), view.context)"
-          new = "BoxShadow.parse(shadows.getMap(i))"
-          if old in content:
-              fixed = content.replace(old, new)
-              open(path, "w").write(fixed)
-              print("CSSProps.kt patch basarili: ikinci arguman kaldirildi")
+          python3 -c "
+          import os
+
+          # --- Patch 1: CSSProps.kt ---
+          cssprops = 'node_modules/expo-modules-core/android/src/main/java/expo/modules/kotlin/views/decorators/CSSProps.kt'
+          if os.path.exists(cssprops):
+              content = open(cssprops).read()
+              old = 'BoxShadow.parse(shadows.getMap(i), view.context)'
+              new = 'BoxShadow.parse(shadows.getMap(i))'
+              if old in content:
+                  open(cssprops, 'w').write(content.replace(old, new))
+                  print('CSSProps.kt: patch OK')
+              else:
+                  print('CSSProps.kt: target not found, skipping')
           else:
-              print("CSSProps.kt: hedef string bulunamadi, kontrol ediliyor...")
-              lines = [l for l in content.split("\n") if "BoxShadow.parse" in l]
-              print("Mevcut BoxShadow.parse satirlari:", lines)
-          PYEOF
-            echo "=== Sonuc ==="
-            grep "BoxShadow.parse" "$CSSPROPS"
-          else
-            echo "CSSProps.kt bulunamadi"
-          fi
+              print('CSSProps.kt: file not found')
 
-      - name: Patch expo-modules-core ReactNativeFeatureFlags.kt
-        run: |
-          FLAGS="node_modules/expo-modules-core/android/src/main/java/expo/modules/rncompatibility/ReactNativeFeatureFlags.kt"
-          if [ -f "$FLAGS" ]; then
-            echo "=== ReactNativeFeatureFlags.kt patch uygulanıyor ==="
-            python3 - << 'PYEOF'
-          path = "node_modules/expo-modules-core/android/src/main/java/expo/modules/rncompatibility/ReactNativeFeatureFlags.kt"
-          fixed = """package expo.modules.rncompatibility
-
-object ReactNativeFeatureFlags {
-  val enableBridgelessArchitecture = true
-}
-"""
-          open(path, "w").write(fixed)
-          print("ReactNativeFeatureFlags.kt patch basarili")
-          PYEOF
-            echo "=== Sonuc ==="
-            cat "$FLAGS"
-          else
-            echo "ReactNativeFeatureFlags.kt bulunamadi"
-          fi
+          # --- Patch 2: ReactNativeFeatureFlags.kt ---
+          flags = 'node_modules/expo-modules-core/android/src/main/java/expo/modules/rncompatibility/ReactNativeFeatureFlags.kt'
+          if os.path.exists(flags):
+              fixed = 'package expo.modules.rncompatibility\n\nobject ReactNativeFeatureFlags {\n  val enableBridgelessArchitecture = true\n}\n'
+              open(flags, 'w').write(fixed)
+              print('ReactNativeFeatureFlags.kt: patch OK')
+          else:
+              print('ReactNativeFeatureFlags.kt: file not found')
+          "
 
       - name: Patch Kotlin version to 2.0.21
         run: |
