@@ -11,6 +11,8 @@ jobs:
   build:
     name: Build Android APK
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
       - name: Checkout repo
@@ -28,6 +30,9 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
@@ -41,17 +46,14 @@ jobs:
 
       - name: Patch Kotlin version to 2.0.21
         run: |
-          sed -i 's/kotlinVersion = "1.9.24"/kotlinVersion = "2.0.21"/' android/build.gradle
-          sed -i 's/kotlinVersion = "1.9.23"/kotlinVersion = "2.0.21"/' android/build.gradle
-          sed -i 's/kotlinVersion = "1.9.22"/kotlinVersion = "2.0.21"/' android/build.gradle
-          grep -n "kotlinVersion" android/build.gradle || echo "kotlinVersion not found, checking..."
-          cat android/build.gradle | head -40
+          KOTLIN_LINE=$(grep -n "kotlinVersion" android/build.gradle | head -1)
+          echo "Found: $KOTLIN_LINE"
+          sed -i 's/kotlinVersion = "[0-9.]*"/kotlinVersion = "2.0.21"/' android/build.gradle
+          grep "kotlinVersion" android/build.gradle
 
       - name: Patch Gradle wrapper to 8.10.2
         run: |
-          sed -i 's|gradle-8.14.3-bin.zip|gradle-8.10.2-bin.zip|g' android/gradle/wrapper/gradle-wrapper.properties
-          sed -i 's|gradle-8.13-bin.zip|gradle-8.10.2-bin.zip|g' android/gradle/wrapper/gradle-wrapper.properties
-          sed -i 's|gradle-8.12-bin.zip|gradle-8.10.2-bin.zip|g' android/gradle/wrapper/gradle-wrapper.properties
+          sed -i 's|gradle-[0-9.]*-bin.zip|gradle-8.10.2-bin.zip|g' android/gradle/wrapper/gradle-wrapper.properties
           cat android/gradle/wrapper/gradle-wrapper.properties
 
       - name: Make gradlew executable
