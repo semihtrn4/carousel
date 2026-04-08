@@ -37,26 +37,42 @@ jobs:
         run: npm install --legacy-peer-deps
 
       - name: Install Expo CLI globally
-        run: |
-          npm install -g @expo/cli@latest
-          EXPO_PATH=$(npm root -g)/@expo/cli/bin/cli
-          echo "EXPO_CLI=$EXPO_PATH" >> $GITHUB_ENV
-          ls -la $EXPO_PATH || echo "not found at $EXPO_PATH"
-          which expo || echo "expo not in PATH"
-          ls $(npm bin -g) | grep expo || echo "no expo in global bin"
+        run: npm install -g @expo/cli@latest
 
+      # ── DIAGNOSTIC: prebuild'den önce ortamı kontrol et ──────────────────
+      - name: Diagnose environment
+        run: |
+          echo "=== Node / npm ==="
+          node --version
+          npm --version
+
+          echo "=== Expo CLI binary ==="
+          EXPO_CLI=$(npm root -g)/@expo/cli/bin/cli
+          ls -la "$EXPO_CLI" || echo "NOT FOUND: $EXPO_CLI"
+
+          echo "=== app.json / app.config.js ==="
+          ls -la app.json app.config.js app.config.ts 2>/dev/null || echo "No app config found!"
+          cat app.json 2>/dev/null || true
+
+          echo "=== package.json expo field ==="
+          node -e "const p=require('./package.json'); console.log(JSON.stringify(p.expo,null,2))" 2>/dev/null || true
+
+          echo "=== Disk space ==="
+          df -h
+
+      # ── PREBUILD (set -x ile tam log) ────────────────────────────────────
       - name: Expo Prebuild
         run: |
-          GLOBAL_BIN=$(npm bin -g)
-          chmod +x $GLOBAL_BIN/expo || true
-          $GLOBAL_BIN/expo prebuild --platform android --clean --no-install
+          set -x
+          EXPO_CLI=$(npm root -g)/@expo/cli/bin/cli
+          node "$EXPO_CLI" prebuild --platform android --clean --no-install 2>&1
         env:
           NODE_OPTIONS: "--max-old-space-size=4096"
+          EXPO_NO_DOTENV: "1"
+          EXPO_NO_TELEMETRY: "1"
 
       - name: Patch Kotlin version to 2.0.21
         run: |
-          KOTLIN_LINE=$(grep -n "kotlinVersion" android/build.gradle | head -1)
-          echo "Found: $KOTLIN_LINE"
           sed -i 's/kotlinVersion = "[0-9.]*"/kotlinVersion = "2.0.21"/' android/build.gradle
           grep "kotlinVersion" android/build.gradle
 
@@ -73,7 +89,8 @@ jobs:
         run: |
           ./gradlew assembleRelease \
             --no-daemon \
-            --warning-mode none \
+            --stacktrace \
+            --warning-mode all \
             -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=512m" \
             -Dorg.gradle.parallel=false
         env:
