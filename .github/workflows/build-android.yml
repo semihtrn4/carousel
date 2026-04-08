@@ -1,72 +1,49 @@
-name: Android APK Build
+{
+  "name": "carousel-studio",
+  "version": "1.0.0",
+  "main": "expo-router/entry",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "ios": "expo run:ios"
+  },
+  "expo": {
+    "scheme": "carousel-studio",
+    "web": {
+      "bundler": "metro"
+    }
+  },
+  "dependencies": {
+    "expo": "~54.0.0",
+    "react": "18.3.1",
+    "react-native": "0.76.3",
 
-on:
-  workflow_dispatch:
-  push:
-    branches:
-      - master
-      - main
+    "expo-router": "~5.0.0",
+    "expo-linking": "~7.0.0",
+    "expo-constants": "~17.0.0",
+    "expo-status-bar": "~2.0.0",
 
-jobs:
-  build:
-    name: Build Android APK
-    runs-on: ubuntu-latest
+    "react-native-screens": "~4.10.0",
+    "react-native-webview": "13.12.5",
 
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+    "expo-image-picker": "~16.0.0",
+    "expo-image-manipulator": "~13.0.0",
+    "expo-media-library": "~17.0.0",
 
-      - name: Setup Node 20
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
+    "react-native-gesture-handler": "~2.24.0",
+    "react-native-reanimated": "~3.17.0",
+    "react-native-safe-area-context": "4.14.0",
 
-      - name: Setup Java 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
+    "@tanstack/react-query": "^5.0.0",
+    "@react-native-async-storage/async-storage": "1.23.1",
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Clear Gradle cache (important)
-        run: |
-          rm -rf ~/.gradle/caches
-          rm -rf ~/.gradle/wrapper
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Fix Hermes permissions
-        run: |
-          find node_modules/react-native/sdks -type f -name "hermesc" | xargs chmod +x 2>/dev/null || true
-          find node_modules/react-native/sdks -type f -name "*.sh" | xargs chmod +x 2>/dev/null || true
-
-      - name: Expo Prebuild
-        run: npx expo prebuild --platform android --clean
-        env:
-          NODE_OPTIONS: "--max-old-space-size=4096"
-
-      - name: Make gradlew executable
-        run: chmod +x android/gradlew
-
-      - name: Build Release APK
-        working-directory: android
-        run: |
-          ./gradlew assembleRelease \
-            --no-daemon \
-            --warning-mode none \
-            -Dorg.gradle.jvmargs="-Xmx3g -XX:MaxMetaspaceSize=512m" \
-            -Dorg.gradle.parallel=false
-        env:
-          GRADLE_OPTS: "-Dorg.gradle.daemon=false"
-          NODE_ENV: "production"
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-release-apk
-          path: android/app/build/outputs/apk/release/*.apk
-          if-no-files-found: error
+    "lucide-react-native": "^0.475.0",
+    "react-native-svg": "15.8.0"
+  },
+  "devDependencies": {
+    "typescript": "~5.3.0",
+    "@types/react": "~18.3.0",
+    "babel-preset-expo": "~12.0.0",
+    "@babel/core": "^7.24.0"
+  }
+}
