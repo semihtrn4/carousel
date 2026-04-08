@@ -51,7 +51,6 @@ jobs:
           python3 -c "
           import os
 
-          # --- Patch 1: CSSProps.kt ---
           cssprops = 'node_modules/expo-modules-core/android/src/main/java/expo/modules/kotlin/views/decorators/CSSProps.kt'
           if os.path.exists(cssprops):
               content = open(cssprops).read()
@@ -61,26 +60,24 @@ jobs:
                   open(cssprops, 'w').write(content.replace(old, new))
                   print('CSSProps.kt: patch OK')
               else:
-                  print('CSSProps.kt: target not found, skipping')
-          else:
-              print('CSSProps.kt: file not found')
+                  print('CSSProps.kt: already patched or not found')
 
-          # --- Patch 2: ReactNativeFeatureFlags.kt ---
           flags = 'node_modules/expo-modules-core/android/src/main/java/expo/modules/rncompatibility/ReactNativeFeatureFlags.kt'
           if os.path.exists(flags):
               fixed = 'package expo.modules.rncompatibility\n\nobject ReactNativeFeatureFlags {\n  val enableBridgelessArchitecture = true\n}\n'
               open(flags, 'w').write(fixed)
               print('ReactNativeFeatureFlags.kt: patch OK')
-          else:
-              print('ReactNativeFeatureFlags.kt: file not found')
           "
 
-      - name: Patch Kotlin version to 2.0.21
+      - name: Patch Kotlin version to 2.1.20
         run: |
-          sed -i 's/kotlinVersion = "[0-9.]*"/kotlinVersion = "2.0.21"/' android/build.gradle || true
-          sed -i 's/kotlin_version = "[0-9.]*"/kotlin_version = "2.0.21"/' android/build.gradle || true
-          sed -i 's/kotlinVersion=[0-9.]*/kotlinVersion=2.0.21/' android/gradle.properties || true
-          echo "kotlinVersion=2.0.21" >> android/gradle.properties
+          echo "=== Patching Kotlin to 2.1.20 ==="
+          sed -i 's/kotlinVersion = "[0-9.]*"/kotlinVersion = "2.1.20"/' android/build.gradle || true
+          sed -i 's/kotlin_version = "[0-9.]*"/kotlin_version = "2.1.20"/' android/build.gradle || true
+          sed -i 's/kotlinVersion=[0-9.]*/kotlinVersion=2.1.20/' android/gradle.properties || true
+          sed -i '/^kotlinVersion=/d' android/gradle.properties || true
+          echo "kotlinVersion=2.1.20" >> android/gradle.properties
+          echo "=== gradle.properties ==="
           cat android/gradle.properties
 
       - name: Patch Gradle wrapper to 8.10.2
