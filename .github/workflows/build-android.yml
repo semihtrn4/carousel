@@ -21,7 +21,7 @@ jobs:
           node-version: 20
           cache: 'npm'
 
-      - name: Setup Java (Java 17 Expo 54 için zorunludur)
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
@@ -30,8 +30,11 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
-      - name: Prebuild Android (Temiz kurulum yapar)
-        run: npx expo prebuild --platform android --clean
+      - name: Fix Permissions (Yetki hatasını çözer)
+        run: chmod -R +x node_modules/.bin
+
+      - name: Prebuild Android
+        run: npm exec expo prebuild -- --platform android --clean
 
       - name: Build APK with Gradle
         working-directory: android
