@@ -34,6 +34,15 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
+      - name: Fix Hermes hermesc permissions
+        run: |
+          echo "=== Fixing Hermes binary permissions ==="
+          find node_modules/react-native/sdks -type f -name "hermesc" | xargs chmod +x 2>/dev/null || true
+          find node_modules/react-native/sdks -type f -name "*.sh" | xargs chmod +x 2>/dev/null || true
+          find node_modules/react-native/sdks -type f -name "hbc-*" | xargs chmod +x 2>/dev/null || true
+          echo "=== Hermes binary check ==="
+          ls -la node_modules/react-native/sdks/hermesc/linux64-bin/ || echo "hermesc dir not found"
+
       - name: Expo Prebuild
         run: node node_modules/expo/bin/cli prebuild --platform android --clean --no-install
         env:
@@ -60,6 +69,12 @@ jobs:
         run: |
           sed -i '/enableBundleCompression/d' android/app/build.gradle
           echo "Patched app/build.gradle"
+
+      - name: Fix hermesc after prebuild
+        run: |
+          echo "=== Re-fixing Hermes binary permissions after prebuild ==="
+          find node_modules/react-native/sdks -type f -name "hermesc" | xargs chmod +x 2>/dev/null || true
+          find node_modules/react-native/sdks -type f -name "*.sh" | xargs chmod +x 2>/dev/null || true
 
       - name: Make gradlew executable
         run: chmod +x android/gradlew
