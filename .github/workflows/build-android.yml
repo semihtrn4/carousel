@@ -36,8 +36,11 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
+      - name: Fix node_modules bin permissions
+        run: chmod -R +x node_modules/.bin/
+
       - name: Expo Prebuild
-        run: ./node_modules/.bin/expo prebuild --platform android --clean --no-install
+        run: node node_modules/@expo/cli/build/bin/cli prebuild --platform android --clean --no-install
         env:
           NODE_OPTIONS: "--max-old-space-size=4096"
 
