@@ -36,12 +36,9 @@ jobs:
 
       - name: Fix Hermes hermesc permissions
         run: |
-          echo "=== Fixing Hermes binary permissions ==="
           find node_modules/react-native/sdks -type f -name "hermesc" | xargs chmod +x 2>/dev/null || true
           find node_modules/react-native/sdks -type f -name "*.sh" | xargs chmod +x 2>/dev/null || true
           find node_modules/react-native/sdks -type f -name "hbc-*" | xargs chmod +x 2>/dev/null || true
-          echo "=== Hermes binary check ==="
-          ls -la node_modules/react-native/sdks/hermesc/linux64-bin/ || echo "hermesc dir not found"
 
       - name: Expo Prebuild
         run: node node_modules/expo/bin/cli prebuild --platform android --clean --no-install
@@ -49,14 +46,40 @@ jobs:
           NODE_OPTIONS: "--max-old-space-size=4096"
           NODE_ENV: "production"
 
+      - name: Patch expo-modules-core CSSProps (BoxShadow uyumsuzluğu)
+        run: |
+          CSSPROPS="node_modules/expo-modules-core/android/src/main/java/expo/modules/kotlin/views/decorators/CSSProps.kt"
+          if [ -f "$CSSPROPS" ]; then
+            echo "=== CSSProps.kt patch uygulanıyor ==="
+            # BoxShadow.parse() fazla argüman sorununu düzelt - sadece ilk argümanı bırak
+            sed -i 's/BoxShadow\.Companion\.parse(\([^,)]*\),[^)]*)/BoxShadow.Companion.parse(\1)/g' "$CSSPROPS" || true
+            sed -i 's/BoxShadow\.parse(\([^,)]*\),[^)]*)/BoxShadow.parse(\1)/g' "$CSSPROPS" || true
+            echo "=== CSSProps.kt satır 144-148 ==="
+            sed -n '144,148p' "$CSSPROPS"
+          else
+            echo "CSSProps.kt bulunamadı"
+          fi
+
+      - name: Patch expo-modules-core ReactNativeFeatureFlags (enableBridgelessArchitecture)
+        run: |
+          FLAGS="node_modules/expo-modules-core/android/src/main/java/expo/modules/rncompatibility/ReactNativeFeatureFlags.kt"
+          if [ -f "$FLAGS" ]; then
+            echo "=== ReactNativeFeatureFlags.kt patch uygulanıyor ==="
+            # enableBridgelessArchitecture referansını kaldır
+            sed -i 's/ReactNativeFeatureFlags\.enableBridgelessArchitecture/false/g' "$FLAGS" || true
+            sed -i '/enableBridgelessArchitecture/d' "$FLAGS" || true
+            echo "=== ReactNativeFeatureFlags.kt içeriği ==="
+            cat "$FLAGS"
+          else
+            echo "ReactNativeFeatureFlags.kt bulunamadı"
+          fi
+
       - name: Patch Kotlin version to 2.0.21
         run: |
-          echo "=== Patching Kotlin version ==="
           sed -i 's/kotlinVersion = "[0-9.]*"/kotlinVersion = "2.0.21"/' android/build.gradle || true
           sed -i 's/kotlin_version = "[0-9.]*"/kotlin_version = "2.0.21"/' android/build.gradle || true
           sed -i 's/kotlinVersion=[0-9.]*/kotlinVersion=2.0.21/' android/gradle.properties || true
           echo "kotlinVersion=2.0.21" >> android/gradle.properties
-          echo "=== gradle.properties after patch ==="
           cat android/gradle.properties
 
       - name: Patch Gradle wrapper to 8.10.2
@@ -67,11 +90,9 @@ jobs:
       - name: Remove deprecated enableBundleCompression
         run: |
           sed -i '/enableBundleCompression/d' android/app/build.gradle
-          echo "Patched app/build.gradle"
 
       - name: Fix hermesc after prebuild
         run: |
-          echo "=== Re-fixing Hermes binary permissions after prebuild ==="
           find node_modules/react-native/sdks -type f -name "hermesc" | xargs chmod +x 2>/dev/null || true
           find node_modules/react-native/sdks -type f -name "*.sh" | xargs chmod +x 2>/dev/null || true
 
