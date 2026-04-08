@@ -41,8 +41,15 @@ jobs:
 
       - name: Patch Kotlin version to 2.0.21
         run: |
-          sed -i 's/kotlinVersion = "[0-9.]*"/kotlinVersion = "2.0.21"/' android/build.gradle
-          grep "kotlinVersion" android/build.gradle
+          echo "=== Searching for kotlin in build.gradle ==="
+          grep -n "kotlin" android/build.gradle || true
+          grep -n "kotlin" android/gradle.properties || true
+          sed -i 's/kotlinVersion = "[0-9.]*"/kotlinVersion = "2.0.21"/' android/build.gradle || true
+          sed -i 's/kotlin_version = "[0-9.]*"/kotlin_version = "2.0.21"/' android/build.gradle || true
+          sed -i 's/kotlinVersion=[0-9.]*/kotlinVersion=2.0.21/' android/gradle.properties || true
+          echo "kotlinVersion=2.0.21" >> android/gradle.properties
+          echo "=== gradle.properties after patch ==="
+          cat android/gradle.properties
 
       - name: Patch Gradle wrapper to 8.10.2
         run: |
