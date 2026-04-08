@@ -19,7 +19,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -33,9 +32,8 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
-
       - name: Prebuild Android
-        run: npx expo prebuild --platform android --clean --no-install
+        run: ./node_modules/.bin/expo prebuild --platform android --clean --no-install
 
       - name: Make gradlew executable
         working-directory: android
