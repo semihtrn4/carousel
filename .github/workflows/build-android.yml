@@ -36,27 +36,13 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
-      - name: Install Expo CLI
-        run: npm install -g @expo/cli@latest
-
       - name: Expo Prebuild
         run: |
-          chmod +x ./node_modules/.bin/expo || true
-          ./node_modules/.bin/expo prebuild --platform android --clean --no-install
+          node node_modules/@expo/cli/build/bin/cli prebuild --platform android --clean --no-install
         env:
           NODE_OPTIONS: "--max-old-space-size=4096"
           EXPO_NO_DOTENV: "1"
           EXPO_NO_TELEMETRY: "1"
-
-      - name: Patch Kotlin version to 2.0.21
-        run: |
-          sed -i 's/kotlinVersion = "[0-9.]*"/kotlinVersion = "2.0.21"/' android/build.gradle
-          grep "kotlinVersion" android/build.gradle
-
-      - name: Patch Gradle wrapper to 8.10.2
-        run: |
-          sed -i 's|gradle-[0-9.]*-bin.zip|gradle-8.10.2-bin.zip|g' android/gradle/wrapper/gradle-wrapper.properties
-          cat android/gradle/wrapper/gradle-wrapper.properties
 
       - name: Make gradlew executable
         run: chmod +x android/gradlew
@@ -67,7 +53,6 @@ jobs:
           ./gradlew assembleRelease \
             --no-daemon \
             --stacktrace \
-            --warning-mode all \
             -Dorg.gradle.jvmargs="-Xmx6g -XX:MaxMetaspaceSize=1g" \
             -Dorg.gradle.parallel=false
         env:
