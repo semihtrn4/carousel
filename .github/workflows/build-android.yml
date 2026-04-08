@@ -36,36 +36,10 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
-      - name: Install Expo CLI globally
-        run: npm install -g @expo/cli@latest
-
-      # ── DIAGNOSTIC: prebuild'den önce ortamı kontrol et ──────────────────
-      - name: Diagnose environment
-        run: |
-          echo "=== Node / npm ==="
-          node --version
-          npm --version
-
-          echo "=== Expo CLI binary ==="
-          EXPO_CLI=$(npm root -g)/@expo/cli/bin/cli
-          ls -la "$EXPO_CLI" || echo "NOT FOUND: $EXPO_CLI"
-
-          echo "=== app.json / app.config.js ==="
-          ls -la app.json app.config.js app.config.ts 2>/dev/null || echo "No app config found!"
-          cat app.json 2>/dev/null || true
-
-          echo "=== package.json expo field ==="
-          node -e "const p=require('./package.json'); console.log(JSON.stringify(p.expo,null,2))" 2>/dev/null || true
-
-          echo "=== Disk space ==="
-          df -h
-
-      # ── PREBUILD (set -x ile tam log) ────────────────────────────────────
       - name: Expo Prebuild
         run: |
           set -x
-          EXPO_CLI=$(npm root -g)/@expo/cli/bin/cli
-          node "$EXPO_CLI" prebuild --platform android --clean --no-install 2>&1
+          npx expo prebuild --platform android --clean --no-install 2>&1
         env:
           NODE_OPTIONS: "--max-old-space-size=4096"
           EXPO_NO_DOTENV: "1"
