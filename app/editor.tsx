@@ -5,6 +5,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { ArrowLeft, Undo, Redo, Image as ImageIcon, Type, Sticker, Palette, Eye, X, Check } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
 import { TEMPLATES, STICKERS, FONTS } from '@/constants/templates';
@@ -88,17 +89,74 @@ canvas { display: block; }
 const c = new fabric.Canvas('c', { width: ${w}, height: ${h}, backgroundColor: '${selColor}', preserveObjectStacking: true });
 const cont = document.getElementById('container');
 for (let i = 1; i < ${slides}; i++) { const line = document.createElement('div'); line.className = 'grid'; line.style.left = (i * ${dims.width}) + 'px'; cont.appendChild(line); }
+const MOBILE_CONTROLS = { cornerColor: '#fff', cornerStrokeColor: '#333', borderColor: '#06FFB4', cornerSize: 20, transparentCorners: false, hasRotatingPoint: false };
 let undoStack = [], redoStack = [];
 function save() { undoStack.push(JSON.stringify(c)); redoStack = []; if (undoStack.length > 20) undoStack.shift(); }
 c.on('object:added', save); c.on('object:modified', save); c.on('object:removed', save);
-window.addImg = (src) => { fabric.Image.fromURL(src, (img) => { const scale = Math.min(800 / img.width, 600 / img.height); img.set({ left: ${w / 2} - (img.width * scale / 2), top: ${h / 2} - (img.height * scale / 2), scaleX: scale, scaleY: scale, cornerColor: '#fff', cornerStrokeColor: '#000', borderColor: '#fff' }); c.add(img); c.setActiveObject(img); c.renderAll(); }, { crossOrigin: 'anonymous' }); };
-window.addTxt = (txt, opts) => { const t = new fabric.Text(txt, { left: ${w / 2}, top: ${h / 2}, fontFamily: opts.fontFamily || 'Arial', fontSize: opts.fontSize || 48, fill: opts.color || '#000', textAlign: 'center', originX: 'center', originY: 'center', cornerColor: '#fff', cornerStrokeColor: '#000', borderColor: '#fff' }); c.add(t); c.setActiveObject(t); c.renderAll(); };
-window.addSticker = (emoji) => { const t = new fabric.Text(emoji, { left: ${w / 2}, top: ${h / 2}, fontSize: 100, originX: 'center', originY: 'center', cornerColor: '#fff', cornerStrokeColor: '#000', borderColor: '#fff' }); c.add(t); c.setActiveObject(t); c.renderAll(); };
+window.addImg = (src, targetLeft) => { fabric.Image.fromURL(src, (img) => { const scale = Math.min(800 / img.width, 600 / img.height); img.set({ left: targetLeft || (${w / 2}), top: ${h / 2} - (img.height * scale / 2), scaleX: scale, scaleY: scale, ...MOBILE_CONTROLS }); c.add(img); c.setActiveObject(img); c.renderAll(); }); };
+window.addTxt = (txt, opts) => { const t = new fabric.Text(txt, { left: opts.left || ${w / 2}, top: ${h / 2}, fontFamily: opts.fontFamily || 'Arial', fontSize: opts.fontSize || 48, fill: opts.color || '#000', textAlign: 'center', originX: 'center', originY: 'center', ...MOBILE_CONTROLS }); c.add(t); c.setActiveObject(t); c.renderAll(); };
+window.addSticker = (emoji, left) => { const t = new fabric.Text(emoji, { left: left || ${w / 2}, top: ${h / 2}, fontSize: 100, originX: 'center', originY: 'center', ...MOBILE_CONTROLS }); c.add(t); c.setActiveObject(t); c.renderAll(); };
 window.setBg = (color) => { c.setBackgroundColor(color, c.renderAll.bind(c)); };
 window.undo = () => { if (undoStack.length > 1) { redoStack.push(undoStack.pop()); const s = undoStack[undoStack.length - 1]; c.loadFromJSON(s, c.renderAll.bind(c)); } };
 window.redo = () => { if (redoStack.length > 0) { const s = redoStack.pop(); undoStack.push(s); c.loadFromJSON(s, c.renderAll.bind(c)); } };
 window.exportCanvas = () => { const data = c.toDataURL({ format: 'png', quality: 1, multiplier: 1 }); window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'export', data })); };
 window.deleteSel = () => { const a = c.getActiveObject(); if (a) { c.remove(a); c.discardActiveObject(); c.renderAll(); } };
+let touchStartX = 0;
+let touchStartY = 0;
+let isDragging = false;
+let lastPinchDist = 0;
+let isPinching = false;
+document.addEventListener('touchstart', (e) => {
+  if (e.touches.length === 2) {
+    isPinching = true;
+    isDragging = false;
+    lastPinchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+  } else {
+    isPinching = false;
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+    isDragging = false;
+  }
+});
+document.addEventListener('touchmove', (e) => {
+  if (e.touches.length === 2) {
+    isPinching = true;
+    const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+    const obj = c.getActiveObject();
+    if (obj && lastPinchDist > 0) {
+      const ratio = dist / lastPinchDist;
+      const newScaleX = Math.max(0.1, Math.min(10, (obj.scaleX || 1) * ratio));
+      const newScaleY = Math.max(0.1, Math.min(10, (obj.scaleY || 1) * ratio));
+      obj.set({ scaleX: newScaleX, scaleY: newScaleY });
+      obj.setCoords();
+      c.renderAll();
+    }
+    lastPinchDist = dist;
+  } else if (!isPinching) {
+    const dx = Math.abs(e.touches[0].clientX - touchStartX);
+    const dy = Math.abs(e.touches[0].clientY - touchStartY);
+    if (dx > 10 || dy > 10) isDragging = true;
+  }
+});
+document.addEventListener('touchend', (e) => {
+  if (isPinching) {
+    if (e.touches.length < 2) {
+      isPinching = false;
+      lastPinchDist = 0;
+      const obj = c.getActiveObject();
+      if (obj) { c.fire('object:modified', { target: obj }); }
+    }
+    return;
+  }
+  if (!isDragging) return;
+  const delta = e.changedTouches[0].clientX - touchStartX;
+  const dy = Math.abs(e.changedTouches[0].clientY - touchStartY);
+  const THRESHOLD = 50;
+  if (Math.abs(delta) > THRESHOLD && Math.abs(delta) > dy) {
+    const dir = delta < 0 ? 1 : -1;
+    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'slideChange', dir }));
+  }
+});
 window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
 </script>
 </body>
@@ -110,24 +168,45 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
       const m = JSON.parse(e.nativeEvent.data);
       if (m.type === 'ready') setLoading(false);
       else if (m.type === 'export') onExport(m.data);
+      else if (m.type === 'slideChange') {
+        setCurSlide(prev => Math.max(1, Math.min(slides, prev + m.dir)));
+      }
     } catch (err) { console.error('Msg error:', err); }
   };
 
   const pickImg = async () => {
-    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: false, quality: 1 });
+    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: false, quality: 0.8 });
     if (!res.canceled && res.assets[0]) {
-      webRef.current?.injectJavaScript(`window.addImg('${res.assets[0].uri}'); true;`);
+      try {
+        const manipResult = await ImageManipulator.manipulateAsync(
+          res.assets[0].uri,
+          [],
+          { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG, base64: true }
+        );
+        const dataUri = `data:image/jpeg;base64,${manipResult.base64}`;
+        const slideW = RATIOS[ratio].width;
+        const targetLeft = (curSlide - 1) * slideW + slideW / 2;
+        webRef.current?.injectJavaScript(`window.addImg('${dataUri}', ${targetLeft}); true;`);
+      } catch (err) {
+        console.error('Image load error:', err);
+      }
     }
   };
 
   const addText = () => {
     if (!textVal.trim()) return;
-    webRef.current?.injectJavaScript(`window.addTxt('${textVal.replace(/'/g, "\\'")}', { fontFamily: '${selFont.family}', fontSize: ${fontSize}, color: '#000000' }); true;`);
+    const slideW = RATIOS[ratio].width;
+    const targetLeft = (curSlide - 1) * slideW + slideW / 2;
+    webRef.current?.injectJavaScript(
+      `window.addTxt('${textVal.replace(/'/g, "\\'")}', { fontFamily: '${selFont.family}', fontSize: ${fontSize}, color: '#000000', left: ${targetLeft} }); true;`
+    );
     setTextVal(''); setShowText(false);
   };
 
   const addSticker = (emoji: string) => {
-    webRef.current?.injectJavaScript(`window.addSticker('${emoji}'); true;`);
+    const slideW = RATIOS[ratio].width;
+    const targetLeft = (curSlide - 1) * slideW + slideW / 2;
+    webRef.current?.injectJavaScript(`window.addSticker('${emoji}', ${targetLeft}); true;`);
   };
 
   const setBg = (color: string) => {

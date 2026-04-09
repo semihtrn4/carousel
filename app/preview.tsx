@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,6 +19,7 @@ export default function CarouselStudioPreview() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const [currentSlide, setCurrentSlide] = useState(0);
+  const scrollRef = useRef<ScrollView>(null);
 
   const imageData = params.imageData as string;
   const slides = parseInt(params.slides as string) || 3;
@@ -53,6 +54,7 @@ export default function CarouselStudioPreview() {
 
       <View style={styles.previewContainer}>
         <ScrollView
+          ref={scrollRef}
           horizontal
           pagingEnabled
           showsHorizontalScrollIndicator={false}
@@ -80,6 +82,36 @@ export default function CarouselStudioPreview() {
         <Text style={styles.infoTitle}>Swipe to preview all slides</Text>
         <Text style={styles.infoSub}>Each slide will be saved as a separate image</Text>
       </View>
+
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.thumbStrip}
+        contentContainerStyle={styles.thumbStripContent}
+      >
+        {Array.from({ length: slides }).map((_, i) => {
+          const thumbW = Math.min(80, (SCREEN_W - 40) / Math.min(slides, 5));
+          const thumbH = thumbW * (dims.height / dims.width);
+          return (
+            <TouchableOpacity
+              key={i}
+              onPress={() => {
+                scrollRef.current?.scrollTo({ x: i * SCREEN_W, animated: true });
+                setCurrentSlide(i);
+              }}
+              style={[styles.thumbWrapper, currentSlide === i && styles.thumbWrapperActive]}
+            >
+              <View style={[styles.thumb, { width: thumbW, height: thumbH }]}>
+                <Image
+                  source={{ uri: imageData }}
+                  style={{ width: thumbW * slides, height: thumbH, marginLeft: -(i * thumbW) }}
+                  resizeMode="cover"
+                />
+              </View>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
 
       <View style={styles.dots}>
         {Array.from({ length: slides }).map((_, i) => (
@@ -118,6 +150,11 @@ const styles = StyleSheet.create({
   dots: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: 20 },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.dark.border },
   dotActive: { backgroundColor: Colors.dark.accent, width: 24 },
+  thumbStrip: { paddingHorizontal: 20, marginBottom: 8 },
+  thumbStripContent: { gap: 8, paddingVertical: 4 },
+  thumbWrapper: { borderRadius: 8, overflow: 'hidden', borderWidth: 2, borderColor: 'transparent' },
+  thumbWrapperActive: { borderColor: Colors.dark.accent },
+  thumb: { borderRadius: 6, overflow: 'hidden', backgroundColor: Colors.dark.surface },
   actions: { flexDirection: 'row', paddingHorizontal: 20, paddingBottom: 32, gap: 12 },
   editBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.dark.surface, paddingVertical: 16, borderRadius: 12, gap: 8 },
   editText: { fontSize: 16, fontWeight: '600', color: Colors.dark.text },
