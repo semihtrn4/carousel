@@ -110,12 +110,12 @@ export default function EditorScreen() {
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Georgia&family=Courier+New&family=Impact&family=Palatino&family=Trebuchet+MS&family=Verdana&family=Garamond&family=Baskerville&family=Playfair+Display&family=Oswald&family=Roboto&family=Montserrat&display=swap" rel="stylesheet">
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { background: #1a1a1a; overflow: hidden; width: 100vw; height: 100vh; }
-#wrapper { width: 100vw; height: 100vh; overflow: hidden; position: relative; display: flex; align-items: center; justify-content: flex-start; }
+#wrapper { width: 100vw; height: 100vh; overflow: hidden; position: relative; }
 #container { position: absolute; top: 0; left: 0; transform-origin: top left; }
-.grid { position: absolute; top: 0; width: 3px; height: 100%; background: repeating-linear-gradient(to bottom, rgba(255,255,255,0.8) 0px, rgba(255,255,255,0.8) 12px, transparent 12px, transparent 24px); pointer-events: none; z-index: 10; }
 canvas { display: block; }
 </style>
 </head>
@@ -124,14 +124,35 @@ canvas { display: block; }
 <script>
 const c = new fabric.Canvas('c', { width: ${w}, height: ${h}, backgroundColor: '${selColor}', preserveObjectStacking: true });
 const cont = document.getElementById('container');
-for (let i = 1; i < ${slides}; i++) { const line = document.createElement('div'); line.className = 'grid'; line.style.left = (i * ${dims.width}) + 'px'; cont.appendChild(line); }
+const scaleToFit = window.innerWidth / ${w};
+let canvasScale = scaleToFit;
+c.setZoom(scaleToFit);
+c.setWidth(window.innerWidth);
+c.setHeight(${h} * scaleToFit);
+cont.style.transform = '';
+// Hayalet çizgiler: canvas üzerine Fabric.js Line nesneleri olarak çiz (export'ta gizlenecek)
+const ghostLines = [];
+for (let i = 1; i < ${slides}; i++) {
+  const x = i * ${dims.width};
+  const line = new fabric.Line([x, 0, x, ${h}], {
+    stroke: 'rgba(255,255,255,0.7)',
+    strokeWidth: 3,
+    strokeDashArray: [20, 15],
+    selectable: false,
+    evented: false,
+    excludeFromExport: true,
+    id: '__ghost_line_' + i,
+  });
+  c.add(line);
+  ghostLines.push(line);
+}
 const MOBILE_CONTROLS = { cornerColor: '#fff', cornerStrokeColor: '#333', borderColor: '#06FFB4', cornerSize: 20, transparentCorners: false, hasRotatingPoint: false };
 let undoStack = [], redoStack = [];
 function save() { undoStack.push(JSON.stringify(c)); redoStack = []; if (undoStack.length > 20) undoStack.shift(); }
-window.hideGrid = () => { document.querySelectorAll('.grid').forEach(el => el.style.display = 'none'); };
-window.showGrid = () => { document.querySelectorAll('.grid').forEach(el => el.style.display = 'block'); };
+window.hideGrid = () => { ghostLines.forEach(l => { l.set({ visible: false }); }); c.renderAll(); };
+window.showGrid = () => { ghostLines.forEach(l => { l.set({ visible: true }); }); c.renderAll(); };
 function sendLayersUpdate() {
-  const layers = c.getObjects().map(obj => ({
+  const layers = c.getObjects().filter(obj => !obj.id || !obj.id.startsWith('__ghost')).map(obj => ({
     id: obj.id,
     type: obj.type,
     visible: obj.visible !== false,
@@ -142,20 +163,14 @@ function sendLayersUpdate() {
 c.on('object:added', () => { save(); sendLayersUpdate(); });
 c.on('object:removed', () => { save(); sendLayersUpdate(); });
 c.on('object:modified', () => { save(); sendLayersUpdate(); });
-const scaleToFit = window.innerWidth / ${w};
-let canvasScale = scaleToFit;
-c.setZoom(scaleToFit);
-c.setWidth(window.innerWidth);
-c.setHeight(${h} * scaleToFit);
-cont.style.transform = '';
 function getVisibleCenterY() { return (c.getHeight() / 2) / c.getZoom(); }
 window.addImg = (src, targetLeft) => { fabric.Image.fromURL(src, (img) => { const scale = Math.min(${dims.width} / img.width, ${h} / img.height * 0.5); img.set({ id: Date.now().toString(), left: targetLeft || (${w / 2}), top: getVisibleCenterY(), scaleX: scale, scaleY: scale, ...MOBILE_CONTROLS }); c.add(img); c.setActiveObject(img); c.renderAll(); }); };
-window.addTxt = (txt, opts) => { const t = new fabric.Text(txt, { id: Date.now().toString(), left: opts.left || ${w / 2}, top: getVisibleCenterY(), fontFamily: opts.fontFamily || 'Arial', fontSize: opts.fontSize || 48, fill: opts.color || '#000', textAlign: 'center', originX: 'center', originY: 'center', ...MOBILE_CONTROLS }); c.add(t); c.setActiveObject(t); c.renderAll(); };
+window.addTxt = (txt, opts) => { const t = new fabric.Text(txt, { id: Date.now().toString(), left: opts.left || ${w / 2}, top: getVisibleCenterY(), fontFamily: opts.fontFamily || 'Arial', fontSize: opts.fontSize || 48, fill: opts.color || '#fff', textAlign: 'center', originX: 'center', originY: 'center', ...MOBILE_CONTROLS }); c.add(t); c.setActiveObject(t); c.renderAll(); };
 window.addSticker = (emoji, left) => { const t = new fabric.Text(emoji, { id: Date.now().toString(), left: left || ${w / 2}, top: getVisibleCenterY(), fontSize: 100, originX: 'center', originY: 'center', ...MOBILE_CONTROLS }); c.add(t); c.setActiveObject(t); c.renderAll(); };
 window.setBg = (color) => { c.setBackgroundColor(color, c.renderAll.bind(c)); };
 window.undo = () => { if (undoStack.length > 1) { redoStack.push(undoStack.pop()); const s = undoStack[undoStack.length - 1]; c.loadFromJSON(s, c.renderAll.bind(c)); } };
 window.redo = () => { if (redoStack.length > 0) { const s = redoStack.pop(); undoStack.push(s); c.loadFromJSON(s, c.renderAll.bind(c)); } };
-window.exportCanvas = () => { const data = c.toDataURL({ format: 'png', quality: 1, multiplier: 1 }); const json = JSON.stringify(c.toJSON(['id'])); window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'export', data, canvasJson: json })); };
+window.exportCanvas = () => { window.hideGrid(); const data = c.toDataURL({ format: 'png', quality: 1, multiplier: 1 }); const json = JSON.stringify(c.toJSON(['id'])); window.showGrid(); window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'export', data, canvasJson: json })); };
 window.deleteSel = () => { const a = c.getActiveObject(); if (a) { c.remove(a); c.discardActiveObject(); c.renderAll(); } };
 window.selectObject = (id) => { const obj = c.getObjects().find(o => o.id === id); if (!obj) return; c.setActiveObject(obj); c.renderAll(); };
 window.bringForward = (id) => { const obj = c.getObjects().find(o => o.id === id); if (!obj) return; c.bringForward(obj); c.renderAll(); sendLayersUpdate(); };
