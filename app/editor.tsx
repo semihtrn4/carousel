@@ -198,6 +198,7 @@ window.setBg = (color) => { c.setBackgroundColor(color, () => { const lineColor 
 window.undo = () => { if (undoStack.length > 1) { redoStack.push(undoStack.pop()); const s = undoStack[undoStack.length - 1]; c.loadFromJSON(s, c.renderAll.bind(c)); } };
 window.redo = () => { if (redoStack.length > 0) { const s = redoStack.pop(); undoStack.push(s); c.loadFromJSON(s, c.renderAll.bind(c)); } };
 window.exportCanvas = () => { window.hideGrid(); setTimeout(() => { const data = c.toDataURL({ format: 'jpeg', quality: 0.92, multiplier: 1 }); const json = JSON.stringify(c.toJSON(['id'])); window.showGrid(); window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'export', data, canvasJson: json })); }, 50); };
+window.exportPreview = () => { window.hideGrid(); setTimeout(() => { const data = c.toDataURL({ format: 'jpeg', quality: 0.75, multiplier: 1 }); const json = JSON.stringify(c.toJSON(['id'])); window.showGrid(); window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'export', data, canvasJson: json, isPreview: false })); }, 50); };
 window.deleteSel = () => { const a = c.getActiveObject(); if (a) { c.remove(a); c.discardActiveObject(); c.renderAll(); } };
 window.selectObject = (id) => { const obj = c.getObjects().find(o => o.id === id); if (!obj) return; c.setActiveObject(obj); c.renderAll(); };
 window.bringForward = (id) => { const obj = c.getObjects().find(o => o.id === id); if (!obj) return; c.bringForward(obj); c.renderAll(); sendLayersUpdate(); };
@@ -307,7 +308,7 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
     try {
       const m = JSON.parse(e.nativeEvent.data);
       if (m.type === 'ready') setLoading(false);
-      else if (m.type === 'export') onExport(m.data, m.canvasJson);
+      else if (m.type === 'export') onExport(m.data, m.canvasJson, m.isPreview);
       else if (m.type === 'slideChange') {
         setCurSlide(prev => Math.max(1, Math.min(slides, prev + m.dir)));
       }
@@ -388,7 +389,7 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
     webRef.current?.injectJavaScript(`window.setBg('${color}'); true;`);
   };
 
-  const onExport = (data: string, canvasJson?: string) => {
+  const onExport = (data: string, canvasJson?: string, isPreview?: boolean) => {
     if (exportTimerRef.current) { clearInterval(exportTimerRef.current); exportTimerRef.current = null; }
     setExporting(false);
     webRef.current?.injectJavaScript(`window.showGrid(); true;`);
@@ -402,6 +403,7 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
         height: (RATIOS[ratio].height).toString(),
         projectId: (params.projectId as string) || '',
         canvasData: canvasJson || '',
+        isPreview: isPreview ? '1' : '0',
       }
     });
   };
@@ -412,7 +414,8 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
     exportTimerRef.current = setInterval(() => {
       setExportSecs(s => s + 1);
     }, 1000);
-    webRef.current?.injectJavaScript(`window.hideGrid(); window.exportCanvas(); true;`);
+    // Preview için düşük çözünürlük (0.25x) — çok daha hızlı
+    webRef.current?.injectJavaScript(`window.hideGrid(); window.exportPreview(); true;`);
   };
 
   const goBack = () => {

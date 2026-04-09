@@ -26,8 +26,8 @@ export default function CarouselStudioExport() {
   const [savedCount, setSavedCount] = useState(0);
   const [showNameModal, setShowNameModal] = useState(false);
   const [projectName, setProjectName] = useState('My Carousel');
-  const [exportSecs, setExportSecs] = useState(0);
   const [exportStep, setExportStep] = useState('');
+  const [exportProgress, setExportProgress] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -39,6 +39,8 @@ export default function CarouselStudioExport() {
   const ratio = (params.ratio as string) || 'portrait';
   const canvasData = params.canvasData as string | undefined;
   const projectId = params.projectId as string | undefined;
+  // isPreview=1 ise imageData düşük çözünürlüklü — sadece önizleme için
+  const isPreview = params.isPreview === '1';
 
   const dims = RATIOS[ratio as keyof typeof RATIOS] || RATIOS.portrait;
 
@@ -49,13 +51,11 @@ export default function CarouselStudioExport() {
       const now = Date.now();
 
       if (projectId) {
-        // Mevcut projeyi güncelle
         const idx = projects.findIndex(p => p.id === projectId);
         if (idx >= 0) {
           projects[idx] = { ...projects[idx], name, thumbnail, canvasData, updatedAt: now };
         }
       } else {
-        // Yeni proje oluştur
         const newProject: Project = {
           id: now.toString(),
           name,
@@ -77,55 +77,61 @@ export default function CarouselStudioExport() {
 
   const exportImages = useCallback(async (name: string) => {
     setExporting(true);
-    setExportSecs(0);
+    setExportProgress(0);
     setExportStep('İzin alınıyor...');
     setShowNameModal(false);
-    timerRef.current = setInterval(() => setExportSecs(s => s + 1), 1000);
+
     try {
       const { status } = await MediaLibrary.requestPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert('Permission Required', 'Please allow access to save photos to your gallery.');
         setExporting(false);
-        if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
         return;
       }
 
-      setExportStep('Görsel boyutlandırılıyor...');
+      setExportStep('Görsel hazırlanıyor...');
+      setExportProgress(10);
+
       const sizeResult = await ImageManipulator.manipulateAsync(imageData, [], {});
       const imageWidth = sizeResult.width;
       const imageHeight = sizeResult.height;
       const cropW = Math.floor(imageWidth / slides);
 
-      setExportStep(`${slides} slide kırpılıyor...`);
-      // Tüm crop işlemlerini paralel çalıştır
-      const cropResults = await Promise.all(
-        Array.from({ length: slides }, (_, i) =>
-          ImageManipulator.manipulateAsync(
-            imageData,
-            [{ crop: { originX: i * cropW, originY: 0, width: cropW, height: imageHeight } }],
-            { format: ImageManipulator.SaveFormat.JPEG, compress: 0.92 }
-          )
-        )
-      );
-
-      setExportStep('Galeriye kaydediliyor...');
-      const assets = await Promise.all(cropResults.map(r => MediaLibrary.createAssetAsync(r.uri)));
-
-      setExportStep('Proje kaydediliyor...');
+      // Thumbnail oluştur (küçük, hızlı)
+      setExportStep('Thumbnail oluşturuluyor...');
+      setExportProgress(15);
       const thumbResult = await ImageManipulator.manipulateAsync(
         imageData,
-        [{ crop: { originX: 0, originY: 0, width: cropW, height: imageHeight } }, { resize: { width: 400 } }],
-        { format: ImageManipulator.SaveFormat.JPEG, compress: 0.7, base64: true }
+        [{ crop: { originX: 0, originY: 0, width: cropW, height: imageHeight } }, { resize: { width: 300 } }],
+        { format: ImageManipulator.SaveFormat.JPEG, compress: 0.6, base64: true }
       );
       const thumbnail = `data:image/jpeg;base64,${thumbResult.base64}`;
+
+      // Önce projeyi kaydet (galeri izni olmasa bile proje kaydolsun)
+      setExportStep('Proje kaydediliyor...');
+      setExportProgress(20);
       await saveProjectToApp(thumbnail, name);
 
-      if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+      // Slide'ları sıralı crop et → galeriye kaydet
+      const assets: MediaLibrary.Asset[] = [];
+      for (let i = 0; i < slides; i++) {
+        setExportStep(`Slide ${i + 1} / ${slides} kaydediliyor...`);
+        setExportProgress(20 + Math.round(((i + 1) / slides) * 78));
+
+        const cropResult = await ImageManipulator.manipulateAsync(
+          imageData,
+          [{ crop: { originX: i * cropW, originY: 0, width: cropW, height: imageHeight } }],
+          { format: ImageManipulator.SaveFormat.JPEG, compress: 0.88 }
+        );
+        const asset = await MediaLibrary.createAssetAsync(cropResult.uri);
+        assets.push(asset);
+      }
+
+      setExportProgress(100);
       setSavedCount(assets.length);
       setCompleted(true);
     } catch (error) {
       console.error('Export error:', error);
-      if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
       Alert.alert('Export Failed', 'Something went wrong while saving your images.');
     } finally {
       setExporting(false);
@@ -137,11 +143,7 @@ export default function CarouselStudioExport() {
     const webUrl = 'https://instagram.com';
     try {
       const canOpen = await Linking.canOpenURL(url);
-      if (canOpen) {
-        await Linking.openURL(url);
-      } else {
-        await Linking.openURL(webUrl);
-      }
+      await Linking.openURL(canOpen ? url : webUrl);
     } catch {
       await Linking.openURL(webUrl);
     }
@@ -158,26 +160,26 @@ export default function CarouselStudioExport() {
           <View style={styles.successIcon}>
             <Check size={48} color={Colors.dark.background} />
           </View>
-          <Text style={styles.successTitle}>Success!</Text>
-          <Text style={styles.successSub}>{savedCount} photos saved to your gallery</Text>
+          <Text style={styles.successTitle}>Kaydedildi!</Text>
+          <Text style={styles.successSub}>{savedCount} fotoğraf galerine kaydedildi</Text>
 
           <View style={styles.instructions}>
-            <Text style={styles.instructionsTitle}>Next Steps:</Text>
+            <Text style={styles.instructionsTitle}>Sonraki Adımlar:</Text>
             <Text style={styles.instructionsText}>
-              1. Open Instagram{'\n'}
-              2. Tap New Post{'\n'}
-              3. Select Multiple{'\n'}
-              4. Pick the saved photos in order
+              1. Instagram'ı aç{'\n'}
+              2. Yeni Gönderi'ye bas{'\n'}
+              3. Birden Fazla Seç{'\n'}
+              4. Kaydedilen fotoğrafları sırayla seç
             </Text>
           </View>
 
           <TouchableOpacity style={styles.igButton} onPress={openInstagram}>
             <Instagram size={24} color={Colors.dark.background} />
-            <Text style={styles.igButtonText}>Open Instagram</Text>
+            <Text style={styles.igButtonText}>Instagram'ı Aç</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.homeButton} onPress={goHome}>
-            <Text style={styles.homeButtonText}>Back to Home</Text>
+            <Text style={styles.homeButtonText}>Ana Sayfaya Dön</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -196,30 +198,38 @@ export default function CarouselStudioExport() {
 
       <View style={styles.preview}>
         <Image source={{ uri: imageData }} style={styles.previewImage} resizeMode="contain" />
+        {isPreview && (
+          <View style={styles.previewBadge}>
+            <Text style={styles.previewBadgeText}>Önizleme</Text>
+          </View>
+        )}
       </View>
 
       <View style={styles.info}>
-        <Text style={styles.infoTitle}>Ready to Export</Text>
-        <Text style={styles.infoSub}>This will be split into {slides} slides ({dims.width}x{dims.height}px each)</Text>
+        <Text style={styles.infoTitle}>Kaydetmeye Hazır</Text>
+        <Text style={styles.infoSub}>{slides} slide olarak bölünecek ({dims.width}×{dims.height}px)</Text>
       </View>
 
       {exporting ? (
         <View style={styles.exporting}>
           <ActivityIndicator size="large" color={Colors.dark.accent} />
           <Text style={styles.exportingText}>{exportStep}</Text>
-          <Text style={styles.exportingTimer}>{exportSecs}s geçti...</Text>
+          <View style={styles.progressBar}>
+            <View style={[styles.progressFill, { width: `${exportProgress}%` as any }]} />
+          </View>
+          <Text style={styles.progressLabel}>{exportProgress}%</Text>
         </View>
       ) : (
         <TouchableOpacity style={styles.exportBtn} onPress={() => setShowNameModal(true)}>
           <Download size={24} color={Colors.dark.background} />
-          <Text style={styles.exportBtnText}>Save to Gallery</Text>
+          <Text style={styles.exportBtnText}>Galeriye Kaydet</Text>
         </TouchableOpacity>
       )}
 
       <Modal visible={showNameModal} transparent animationType="slide" onRequestClose={() => setShowNameModal(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Project Name</Text>
+            <Text style={styles.modalTitle}>Proje Adı</Text>
             <TextInput
               style={styles.nameInput}
               value={projectName}
@@ -230,10 +240,10 @@ export default function CarouselStudioExport() {
             />
             <TouchableOpacity style={styles.exportBtn} onPress={() => exportImages(projectName || 'My Carousel')}>
               <Save size={20} color={Colors.dark.background} />
-              <Text style={styles.exportBtnText}>Save</Text>
+              <Text style={styles.exportBtnText}>Kaydet</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowNameModal(false)}>
-              <Text style={styles.cancelText}>Cancel</Text>
+              <Text style={styles.cancelText}>İptal</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -246,14 +256,18 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.dark.background },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 16 },
   title: { fontSize: 18, fontWeight: '600', color: Colors.dark.text },
-  preview: { flex: 1, padding: 20, justifyContent: 'center' },
+  preview: { flex: 1, padding: 20, justifyContent: 'center', position: 'relative' },
   previewImage: { width: '100%', height: '100%', borderRadius: 12 },
+  previewBadge: { position: 'absolute', top: 28, right: 28, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+  previewBadgeText: { fontSize: 12, color: Colors.dark.textSecondary },
   info: { paddingHorizontal: 20, paddingBottom: 20, alignItems: 'center' },
   infoTitle: { fontSize: 18, fontWeight: '600', color: Colors.dark.text },
   infoSub: { fontSize: 14, color: Colors.dark.textMuted, marginTop: 4, textAlign: 'center' },
-  exporting: { padding: 40, alignItems: 'center' },
-  exportingText: { marginTop: 16, fontSize: 16, color: Colors.dark.textSecondary },
-  exportingTimer: { marginTop: 8, fontSize: 13, color: Colors.dark.textMuted },
+  exporting: { padding: 32, alignItems: 'center' },
+  exportingText: { marginTop: 16, fontSize: 15, color: Colors.dark.textSecondary, textAlign: 'center' },
+  progressBar: { width: '80%', height: 6, backgroundColor: Colors.dark.border, borderRadius: 3, marginTop: 16, overflow: 'hidden' },
+  progressFill: { height: '100%', backgroundColor: Colors.dark.accent, borderRadius: 3 },
+  progressLabel: { marginTop: 8, fontSize: 13, color: Colors.dark.textMuted },
   exportBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.dark.accent, marginHorizontal: 20, marginBottom: 32, paddingVertical: 18, borderRadius: 16, gap: 12 },
   exportBtnText: { fontSize: 18, fontWeight: '600', color: Colors.dark.background },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'flex-end' },
