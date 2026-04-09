@@ -130,29 +130,231 @@ export const CUTOUT_LETTERS: CutoutLetter[] = [
   { id: 'letter-Z', letter: 'Z', emoji: '🇿' },
 ];
 
-export type Frame = { id: string; name: string; platform: string; ratio: string; svg: string };
+export type Frame = {
+  id: string;
+  name: string;
+  platform: string;
+  ratio: string;
+  svg?: string;
+  imageAsset?: string; // 'local' means use bundled asset
+  color: string; // platform brand color for UI button
+};
 
 export const FRAMES: Frame[] = [
+  // ── Instagram ──────────────────────────────────────────────────────────────
   {
     id: 'frame-ig-post',
     name: 'Instagram Post',
     platform: 'instagram',
-    ratio: 'square',
-    svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1080"><rect x="10" y="10" width="1060" height="1060" rx="20" ry="20" fill="none" stroke="white" stroke-width="8" stroke-dasharray="20,10"/><rect x="30" y="30" width="1020" height="1020" rx="15" ry="15" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="3"/></svg>`
+    ratio: 'portrait',
+    color: '#E1306C',
+    imageAsset: 'local_124',
   },
   {
     id: 'frame-ig-story',
-    name: 'Instagram Story',
+    name: 'IG Story',
     platform: 'instagram',
     ratio: 'story',
-    svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920"><rect x="10" y="10" width="1060" height="1900" rx="40" ry="40" fill="none" stroke="white" stroke-width="8" stroke-dasharray="20,10"/><text x="540" y="1880" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-size="36" font-family="Arial">Instagram Story</text></svg>`
+    color: '#E1306C',
+    svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920">
+      <defs>
+        <linearGradient id="igStoryGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+          <stop offset="0%" style="stop-color:#f09433"/>
+          <stop offset="25%" style="stop-color:#e6683c"/>
+          <stop offset="50%" style="stop-color:#dc2743"/>
+          <stop offset="75%" style="stop-color:#cc2366"/>
+          <stop offset="100%" style="stop-color:#bc1888"/>
+        </linearGradient>
+      </defs>
+      <rect x="8" y="8" width="1064" height="1904" rx="48" ry="48" fill="none" stroke="url(#igStoryGrad)" stroke-width="16"/>
+      <rect x="28" y="28" width="1024" height="1864" rx="36" ry="36" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="4"/>
+      <circle cx="540" cy="96" r="44" fill="none" stroke="url(#igStoryGrad)" stroke-width="6"/>
+      <circle cx="540" cy="96" r="36" fill="rgba(0,0,0,0.4)"/>
+      <text x="540" y="1880" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-size="32" font-family="Arial" font-weight="bold">INSTAGRAM STORY</text>
+    </svg>`,
   },
+  {
+    id: 'frame-ig-carousel',
+    name: 'IG Carousel',
+    platform: 'instagram',
+    ratio: 'square',
+    color: '#E1306C',
+    svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1080">
+      <defs>
+        <linearGradient id="igCarGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+          <stop offset="0%" style="stop-color:#f09433"/>
+          <stop offset="50%" style="stop-color:#dc2743"/>
+          <stop offset="100%" style="stop-color:#bc1888"/>
+        </linearGradient>
+      </defs>
+      <rect x="8" y="8" width="1064" height="1064" rx="24" ry="24" fill="none" stroke="url(#igCarGrad)" stroke-width="12"/>
+      <rect x="24" y="24" width="1032" height="1032" rx="16" ry="16" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="3"/>
+      <rect x="900" y="900" width="140" height="140" rx="12" fill="rgba(0,0,0,0.5)"/>
+      <text x="970" y="985" text-anchor="middle" fill="white" font-size="48" font-family="Arial" font-weight="bold">❐</text>
+    </svg>`,
+  },
+
+  // ── TikTok ─────────────────────────────────────────────────────────────────
   {
     id: 'frame-tiktok',
     name: 'TikTok',
     platform: 'tiktok',
     ratio: 'story',
-    svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920"><rect x="10" y="10" width="1060" height="1900" rx="20" ry="20" fill="none" stroke="#69C9D0" stroke-width="8"/><rect x="10" y="10" width="1060" height="1900" rx="20" ry="20" fill="none" stroke="#EE1D52" stroke-width="4" stroke-dasharray="30,15" opacity="0.7"/><text x="540" y="1880" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-size="36" font-family="Arial">TikTok</text></svg>`
+    color: '#010101',
+    svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920">
+      <rect x="8" y="8" width="1064" height="1904" rx="24" ry="24" fill="none" stroke="#69C9D0" stroke-width="10"/>
+      <rect x="18" y="18" width="1044" height="1884" rx="18" ry="18" fill="none" stroke="#EE1D52" stroke-width="6" stroke-dasharray="0"/>
+      <rect x="28" y="28" width="1024" height="1864" rx="14" ry="14" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="3"/>
+      <!-- TikTok logo shape hint -->
+      <text x="540" y="1880" text-anchor="middle" fill="rgba(255,255,255,0.45)" font-size="32" font-family="Arial" font-weight="bold" letter-spacing="6">TIKTOK</text>
+      <!-- Side action bar hint -->
+      <rect x="980" y="700" width="72" height="320" rx="36" fill="rgba(0,0,0,0.4)"/>
+    </svg>`,
+  },
+
+  // ── Facebook ───────────────────────────────────────────────────────────────
+  {
+    id: 'frame-facebook-post',
+    name: 'Facebook Post',
+    platform: 'facebook',
+    ratio: 'landscape',
+    color: '#1877F2',
+    svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+      <rect x="8" y="8" width="1904" height="1064" rx="16" ry="16" fill="none" stroke="#1877F2" stroke-width="12"/>
+      <rect x="24" y="24" width="1872" height="1032" rx="10" ry="10" fill="none" stroke="rgba(24,119,242,0.35)" stroke-width="4"/>
+      <!-- Top bar -->
+      <rect x="0" y="0" width="1920" height="80" rx="16" fill="rgba(24,119,242,0.15)"/>
+      <circle cx="52" cy="40" r="24" fill="#1877F2"/>
+      <text x="52" y="48" text-anchor="middle" fill="white" font-size="28" font-family="Arial" font-weight="bold">f</text>
+      <text x="90" y="50" fill="rgba(255,255,255,0.7)" font-size="26" font-family="Arial">Facebook</text>
+      <text x="960" y="1060" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="28" font-family="Arial" font-weight="bold">FACEBOOK POST</text>
+    </svg>`,
+  },
+  {
+    id: 'frame-facebook-story',
+    name: 'FB Story',
+    platform: 'facebook',
+    ratio: 'story',
+    color: '#1877F2',
+    svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920">
+      <rect x="8" y="8" width="1064" height="1904" rx="40" ry="40" fill="none" stroke="#1877F2" stroke-width="14"/>
+      <rect x="26" y="26" width="1028" height="1868" rx="30" ry="30" fill="none" stroke="rgba(24,119,242,0.3)" stroke-width="4"/>
+      <rect x="0" y="0" width="1080" height="100" rx="40" fill="rgba(24,119,242,0.2)"/>
+      <circle cx="60" cy="50" r="28" fill="#1877F2"/>
+      <text x="60" y="60" text-anchor="middle" fill="white" font-size="32" font-family="Arial" font-weight="bold">f</text>
+      <text x="540" y="1890" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="30" font-family="Arial" font-weight="bold">FACEBOOK STORY</text>
+    </svg>`,
+  },
+
+  // ── Twitter / X ────────────────────────────────────────────────────────────
+  {
+    id: 'frame-twitter-post',
+    name: 'X (Twitter)',
+    platform: 'twitter',
+    ratio: 'landscape',
+    color: '#000000',
+    svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+      <rect x="8" y="8" width="1904" height="1064" rx="16" ry="16" fill="none" stroke="#ffffff" stroke-width="10"/>
+      <rect x="24" y="24" width="1872" height="1032" rx="10" ry="10" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="3"/>
+      <!-- X logo -->
+      <rect x="0" y="0" width="1920" height="80" rx="16" fill="rgba(0,0,0,0.5)"/>
+      <text x="48" y="56" fill="white" font-size="44" font-family="Arial" font-weight="bold">𝕏</text>
+      <text x="960" y="1060" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="28" font-family="Arial" font-weight="bold">X · TWITTER</text>
+    </svg>`,
+  },
+  {
+    id: 'frame-twitter-square',
+    name: 'X Square',
+    platform: 'twitter',
+    ratio: 'square',
+    color: '#000000',
+    svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1080">
+      <rect x="8" y="8" width="1064" height="1064" rx="16" ry="16" fill="none" stroke="#ffffff" stroke-width="10"/>
+      <rect x="24" y="24" width="1032" height="1032" rx="10" ry="10" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="3"/>
+      <text x="540" y="1060" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="28" font-family="Arial" font-weight="bold">𝕏 · TWITTER</text>
+    </svg>`,
+  },
+
+  // ── YouTube ────────────────────────────────────────────────────────────────
+  {
+    id: 'frame-youtube-thumb',
+    name: 'YouTube Thumb',
+    platform: 'youtube',
+    ratio: 'landscape',
+    color: '#FF0000',
+    svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+      <rect x="8" y="8" width="1904" height="1064" rx="16" ry="16" fill="none" stroke="#FF0000" stroke-width="14"/>
+      <rect x="26" y="26" width="1868" height="1028" rx="10" ry="10" fill="none" stroke="rgba(255,0,0,0.3)" stroke-width="4"/>
+      <!-- YouTube play button hint -->
+      <rect x="820" y="440" width="280" height="200" rx="40" fill="rgba(255,0,0,0.7)"/>
+      <polygon points="900,480 900,600 1020,540" fill="white"/>
+      <text x="960" y="1060" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="28" font-family="Arial" font-weight="bold">YOUTUBE THUMBNAIL</text>
+    </svg>`,
+  },
+  {
+    id: 'frame-youtube-short',
+    name: 'YouTube Short',
+    platform: 'youtube',
+    ratio: 'story',
+    color: '#FF0000',
+    svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920">
+      <rect x="8" y="8" width="1064" height="1904" rx="24" ry="24" fill="none" stroke="#FF0000" stroke-width="14"/>
+      <rect x="26" y="26" width="1028" height="1868" rx="16" ry="16" fill="none" stroke="rgba(255,0,0,0.25)" stroke-width="4"/>
+      <rect x="0" y="0" width="1080" height="90" rx="24" fill="rgba(255,0,0,0.2)"/>
+      <rect x="460" y="24" width="160" height="44" rx="22" fill="#FF0000"/>
+      <text x="540" y="54" text-anchor="middle" fill="white" font-size="22" font-family="Arial" font-weight="bold">Shorts</text>
+      <text x="540" y="1890" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="30" font-family="Arial" font-weight="bold">YOUTUBE SHORTS</text>
+    </svg>`,
+  },
+
+  // ── Pinterest ──────────────────────────────────────────────────────────────
+  {
+    id: 'frame-pinterest',
+    name: 'Pinterest Pin',
+    platform: 'pinterest',
+    ratio: 'portrait',
+    color: '#E60023',
+    svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1350">
+      <rect x="8" y="8" width="1064" height="1334" rx="24" ry="24" fill="none" stroke="#E60023" stroke-width="12"/>
+      <rect x="24" y="24" width="1032" height="1302" rx="16" ry="16" fill="none" stroke="rgba(230,0,35,0.3)" stroke-width="4"/>
+      <!-- Pinterest P badge -->
+      <circle cx="540" cy="60" r="40" fill="#E60023"/>
+      <text x="540" y="76" text-anchor="middle" fill="white" font-size="44" font-family="Georgia" font-weight="bold">P</text>
+      <text x="540" y="1330" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="28" font-family="Arial" font-weight="bold">PINTEREST</text>
+    </svg>`,
+  },
+
+  // ── LinkedIn ───────────────────────────────────────────────────────────────
+  {
+    id: 'frame-linkedin',
+    name: 'LinkedIn Post',
+    platform: 'linkedin',
+    ratio: 'landscape',
+    color: '#0A66C2',
+    svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+      <rect x="8" y="8" width="1904" height="1064" rx="16" ry="16" fill="none" stroke="#0A66C2" stroke-width="12"/>
+      <rect x="24" y="24" width="1872" height="1032" rx="10" ry="10" fill="none" stroke="rgba(10,102,194,0.35)" stroke-width="4"/>
+      <rect x="0" y="0" width="1920" height="80" rx="16" fill="rgba(10,102,194,0.2)"/>
+      <!-- LinkedIn "in" logo -->
+      <rect x="16" y="8" width="64" height="64" rx="10" fill="#0A66C2"/>
+      <text x="48" y="56" text-anchor="middle" fill="white" font-size="36" font-family="Arial" font-weight="bold">in</text>
+      <text x="96" y="52" fill="rgba(255,255,255,0.7)" font-size="26" font-family="Arial">LinkedIn</text>
+      <text x="960" y="1060" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="28" font-family="Arial" font-weight="bold">LINKEDIN POST</text>
+    </svg>`,
+  },
+  {
+    id: 'frame-linkedin-square',
+    name: 'LinkedIn Square',
+    platform: 'linkedin',
+    ratio: 'square',
+    color: '#0A66C2',
+    svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1080">
+      <rect x="8" y="8" width="1064" height="1064" rx="16" ry="16" fill="none" stroke="#0A66C2" stroke-width="12"/>
+      <rect x="24" y="24" width="1032" height="1032" rx="10" ry="10" fill="none" stroke="rgba(10,102,194,0.3)" stroke-width="4"/>
+      <rect x="16" y="16" width="64" height="64" rx="10" fill="#0A66C2"/>
+      <text x="48" y="64" text-anchor="middle" fill="white" font-size="36" font-family="Arial" font-weight="bold">in</text>
+      <text x="540" y="1060" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="28" font-family="Arial" font-weight="bold">LINKEDIN</text>
+    </svg>`,
   },
 ];
 

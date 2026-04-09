@@ -136,7 +136,7 @@ Mevcut carousel editörüne (`app/editor.tsx`) profesyonel düzenleme araçları
     - **Özellik 14: Toolbar Araç Çağrıları**
     - **Doğrular: Gereksinim 7.7, 7.8, 7.9, 7.10**
 
-- [~] 10. Elements sekmesi UI (cutout harfler + frame'ler)
+- [ ] 10. Elements sekmesi UI (cutout harfler + frame'ler)
   - [x] 10.1 `toolbar()` switch'ine `elements` case'ini ekle
     - Cutout harfleri yatay kaydırılabilir listede göster
     - Frame'leri ayrı bölümde listele
@@ -149,7 +149,7 @@ Mevcut carousel editörüne (`app/editor.tsx`) profesyonel düzenleme araçları
     - **Özellik 5: Frame Ölçekleme Doğruluğu**
     - **Doğrular: Gereksinim 3.5**
 
-- [~] 11. Sticker kategorileri UI güncellemesi
+- [ ] 11. Sticker kategorileri UI güncellemesi
   - [x] 11.1 `stickers` sekmesini `STICKER_CATEGORIES` kullanacak şekilde güncelle
     - Kategori seçici (sekme veya başlık) ekle
     - Seçili kategorinin sticker'larını göster

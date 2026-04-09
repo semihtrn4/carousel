@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, ActivityIndicator, Alert, Linking, TextInput, Modal } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -26,6 +26,13 @@ export default function CarouselStudioExport() {
   const [savedCount, setSavedCount] = useState(0);
   const [showNameModal, setShowNameModal] = useState(false);
   const [projectName, setProjectName] = useState('My Carousel');
+  const [exportSecs, setExportSecs] = useState(0);
+  const [exportStep, setExportStep] = useState('');
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, []);
 
   const imageData = params.imageData as string;
   const slides = parseInt(params.slides as string) || 3;
@@ -70,55 +77,55 @@ export default function CarouselStudioExport() {
 
   const exportImages = useCallback(async (name: string) => {
     setExporting(true);
+    setExportSecs(0);
+    setExportStep('İzin alınıyor...');
     setShowNameModal(false);
+    timerRef.current = setInterval(() => setExportSecs(s => s + 1), 1000);
     try {
       const { status } = await MediaLibrary.requestPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert('Permission Required', 'Please allow access to save photos to your gallery.');
         setExporting(false);
+        if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
         return;
       }
 
-      const assets: MediaLibrary.Asset[] = [];
-
+      setExportStep('Görsel boyutlandırılıyor...');
       const sizeResult = await ImageManipulator.manipulateAsync(imageData, [], {});
       const imageWidth = sizeResult.width;
       const imageHeight = sizeResult.height;
       const cropW = Math.floor(imageWidth / slides);
 
-      for (let i = 0; i < slides; i++) {
-        const cropConfig = {
-          originX: i * cropW,
-          originY: 0,
-          width: cropW,
-          height: imageHeight,
-        };
+      setExportStep(`${slides} slide kırpılıyor...`);
+      // Tüm crop işlemlerini paralel çalıştır
+      const cropResults = await Promise.all(
+        Array.from({ length: slides }, (_, i) =>
+          ImageManipulator.manipulateAsync(
+            imageData,
+            [{ crop: { originX: i * cropW, originY: 0, width: cropW, height: imageHeight } }],
+            { format: ImageManipulator.SaveFormat.JPEG, compress: 0.92 }
+          )
+        )
+      );
 
-        const manipResult = await ImageManipulator.manipulateAsync(
-          imageData,
-          [{ crop: cropConfig }],
-          { format: ImageManipulator.SaveFormat.PNG, compress: 1 }
-        );
+      setExportStep('Galeriye kaydediliyor...');
+      const assets = await Promise.all(cropResults.map(r => MediaLibrary.createAssetAsync(r.uri)));
 
-        const asset = await MediaLibrary.createAssetAsync(manipResult.uri);
-        assets.push(asset);
-      }
-
-      // Thumbnail olarak ilk slide'ı kullan
+      setExportStep('Proje kaydediliyor...');
       const thumbResult = await ImageManipulator.manipulateAsync(
         imageData,
         [{ crop: { originX: 0, originY: 0, width: cropW, height: imageHeight } }, { resize: { width: 400 } }],
         { format: ImageManipulator.SaveFormat.JPEG, compress: 0.7, base64: true }
       );
       const thumbnail = `data:image/jpeg;base64,${thumbResult.base64}`;
-
-      // Uygulamaya kaydet
       await saveProjectToApp(thumbnail, name);
 
+      if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
       setSavedCount(assets.length);
       setCompleted(true);
     } catch (error) {
       console.error('Export error:', error);
+      if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
       Alert.alert('Export Failed', 'Something went wrong while saving your images.');
     } finally {
       setExporting(false);
@@ -199,7 +206,8 @@ export default function CarouselStudioExport() {
       {exporting ? (
         <View style={styles.exporting}>
           <ActivityIndicator size="large" color={Colors.dark.accent} />
-          <Text style={styles.exportingText}>Saving to gallery...</Text>
+          <Text style={styles.exportingText}>{exportStep}</Text>
+          <Text style={styles.exportingTimer}>{exportSecs}s geçti...</Text>
         </View>
       ) : (
         <TouchableOpacity style={styles.exportBtn} onPress={() => setShowNameModal(true)}>
@@ -245,6 +253,7 @@ const styles = StyleSheet.create({
   infoSub: { fontSize: 14, color: Colors.dark.textMuted, marginTop: 4, textAlign: 'center' },
   exporting: { padding: 40, alignItems: 'center' },
   exportingText: { marginTop: 16, fontSize: 16, color: Colors.dark.textSecondary },
+  exportingTimer: { marginTop: 8, fontSize: 13, color: Colors.dark.textMuted },
   exportBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.dark.accent, marginHorizontal: 20, marginBottom: 32, paddingVertical: 18, borderRadius: 16, gap: 12 },
   exportBtnText: { fontSize: 18, fontWeight: '600', color: Colors.dark.background },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'flex-end' },

@@ -1,20 +1,22 @@
 // FILE_VERSION_1744065307
 import { useRef, useState, useCallback, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Modal, ScrollView, TextInput, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Modal, ScrollView, TextInput, Alert, Image } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ArrowLeft, Undo, Redo, Image as ImageIcon, Type, Sticker, Palette, Eye, X, Check, Layers, LayoutGrid } from 'lucide-react-native';
+import { ArrowLeft, Undo, Redo, Image as ImageIcon, Type, Sticker, Palette, Eye, X, Check, Layers, LayoutGrid, Shapes } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
 import { TEMPLATES, STICKERS, FONTS, CUTOUT_LETTERS, FRAMES, STICKER_CATEGORIES } from '@/constants/templates';
+import { ICON_CATEGORIES } from '@/constants/icons';
 
 const TABS = [
   { id: 'photos', icon: ImageIcon, label: 'Photos' },
   { id: 'text', icon: Type, label: 'Text' },
   { id: 'stickers', icon: Sticker, label: 'Stickers' },
+  { id: 'icons', icon: Shapes, label: 'Icons' },
   { id: 'elements', icon: LayoutGrid, label: 'Elements' },
   { id: 'background', icon: Palette, label: 'BG' },
   { id: 'layers', icon: Layers, label: 'Layers' },
@@ -55,7 +57,11 @@ export default function EditorScreen() {
   const [selectedObject, setSelectedObject] = useState<SelectedObject>(null);
   const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
   const [selStickerCat, setSelStickerCat] = useState('general');
+  const [selIconCat, setSelIconCat] = useState('shapes');
   const [showColorPicker, setShowColorPicker] = useState<'fill' | 'stroke' | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [exportSecs, setExportSecs] = useState(0);
+  const exportTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     const dims = RATIOS[ratio];
@@ -130,12 +136,33 @@ c.setZoom(scaleToFit);
 c.setWidth(window.innerWidth);
 c.setHeight(${h} * scaleToFit);
 cont.style.transform = '';
+function isLightColor(color) {
+  let r, g, b;
+  if (color.startsWith('#')) {
+    const hex = color.replace('#', '');
+    r = parseInt(hex.substring(0, 2), 16);
+    g = parseInt(hex.substring(2, 4), 16);
+    b = parseInt(hex.substring(4, 6), 16);
+  } else {
+    const m = color.match(/\\d+/g);
+    if (!m) return false;
+    r = Number(m[0]); g = Number(m[1]); b = Number(m[2]);
+  }
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.5;
+}
+
+function getContrastLineColor(bgColor) {
+  return isLightColor(bgColor) ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.7)';
+}
+
 // Hayalet çizgiler: canvas üzerine Fabric.js Line nesneleri olarak çiz (export'ta gizlenecek)
 const ghostLines = [];
+const initialLineColor = getContrastLineColor('${selColor}');
 for (let i = 1; i < ${slides}; i++) {
   const x = i * ${dims.width};
   const line = new fabric.Line([x, 0, x, ${h}], {
-    stroke: 'rgba(255,255,255,0.7)',
+    stroke: initialLineColor,
     strokeWidth: 3,
     strokeDashArray: [20, 15],
     selectable: false,
@@ -164,13 +191,13 @@ c.on('object:added', () => { save(); sendLayersUpdate(); });
 c.on('object:removed', () => { save(); sendLayersUpdate(); });
 c.on('object:modified', () => { save(); sendLayersUpdate(); });
 function getVisibleCenterY() { return (c.getHeight() / 2) / c.getZoom(); }
-window.addImg = (src, targetLeft) => { fabric.Image.fromURL(src, (img) => { const scale = Math.min(${dims.width} / img.width, ${h} / img.height * 0.5); img.set({ id: Date.now().toString(), left: targetLeft || (${w / 2}), top: getVisibleCenterY(), scaleX: scale, scaleY: scale, ...MOBILE_CONTROLS }); c.add(img); c.setActiveObject(img); c.renderAll(); }); };
+window.addImg = (src, targetLeft) => { fabric.Image.fromURL(src, (img) => { const scale = Math.min(${dims.width} / img.width, ${h} / img.height); img.set({ id: Date.now().toString(), left: targetLeft || (${w / 2}), top: getVisibleCenterY(), scaleX: scale, scaleY: scale, ...MOBILE_CONTROLS }); c.add(img); c.setActiveObject(img); c.renderAll(); }); };
 window.addTxt = (txt, opts) => { const t = new fabric.Text(txt, { id: Date.now().toString(), left: opts.left || ${w / 2}, top: getVisibleCenterY(), fontFamily: opts.fontFamily || 'Arial', fontSize: opts.fontSize || 48, fill: opts.color || '#fff', textAlign: 'center', originX: 'center', originY: 'center', ...MOBILE_CONTROLS }); c.add(t); c.setActiveObject(t); c.renderAll(); };
 window.addSticker = (emoji, left) => { const t = new fabric.Text(emoji, { id: Date.now().toString(), left: left || ${w / 2}, top: getVisibleCenterY(), fontSize: 100, originX: 'center', originY: 'center', ...MOBILE_CONTROLS }); c.add(t); c.setActiveObject(t); c.renderAll(); };
-window.setBg = (color) => { c.setBackgroundColor(color, c.renderAll.bind(c)); };
+window.setBg = (color) => { c.setBackgroundColor(color, () => { const lineColor = getContrastLineColor(color); ghostLines.forEach(l => l.set({ stroke: lineColor })); c.renderAll(); }); };
 window.undo = () => { if (undoStack.length > 1) { redoStack.push(undoStack.pop()); const s = undoStack[undoStack.length - 1]; c.loadFromJSON(s, c.renderAll.bind(c)); } };
 window.redo = () => { if (redoStack.length > 0) { const s = redoStack.pop(); undoStack.push(s); c.loadFromJSON(s, c.renderAll.bind(c)); } };
-window.exportCanvas = () => { window.hideGrid(); const data = c.toDataURL({ format: 'png', quality: 1, multiplier: 1 }); const json = JSON.stringify(c.toJSON(['id'])); window.showGrid(); window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'export', data, canvasJson: json })); };
+window.exportCanvas = () => { window.hideGrid(); setTimeout(() => { const data = c.toDataURL({ format: 'jpeg', quality: 0.92, multiplier: 1 }); const json = JSON.stringify(c.toJSON(['id'])); window.showGrid(); window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'export', data, canvasJson: json })); }, 50); };
 window.deleteSel = () => { const a = c.getActiveObject(); if (a) { c.remove(a); c.discardActiveObject(); c.renderAll(); } };
 window.selectObject = (id) => { const obj = c.getObjects().find(o => o.id === id); if (!obj) return; c.setActiveObject(obj); c.renderAll(); };
 window.bringForward = (id) => { const obj = c.getObjects().find(o => o.id === id); if (!obj) return; c.bringForward(obj); c.renderAll(); sendLayersUpdate(); };
@@ -183,6 +210,7 @@ window.setStroke = (color, width) => { const a = c.getActiveObject(); if (!a) re
 window.setFill = (color) => { const a = c.getActiveObject(); if (!a) return; a.set({ fill: color }); c.renderAll(); };
 window.moveToSlide = (slideIndex, slideWidth) => { const a = c.getActiveObject(); if (!a) return; a.set({ left: (slideIndex - 1) * slideWidth + slideWidth / 2 }); a.setCoords(); c.renderAll(); };
 window.addFrame = (svgStr, w, h) => { fabric.loadSVGFromString(svgStr, (objects, options) => { const svg = fabric.util.groupSVGElements(objects, options); svg.set({ left: 0, top: 0, scaleX: w / svg.width, scaleY: h / svg.height, id: Date.now().toString(), selectable: true, ...MOBILE_CONTROLS }); c.add(svg); c.renderAll(); }); };
+window.addFrameImg = (src, w, h) => { fabric.Image.fromURL(src, (img) => { img.set({ left: 0, top: 0, scaleX: w / img.width, scaleY: h / img.height, id: Date.now().toString(), selectable: true, ...MOBILE_CONTROLS }); c.add(img); c.renderAll(); }); };
 c.on('selection:created', (e) => {
   const obj = e.selected[0];
   if (!obj) return;
@@ -304,9 +332,9 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
         const manipResult = await ImageManipulator.manipulateAsync(
           res.assets[0].uri,
           [],
-          { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG, base64: true }
+          { compress: 1, format: ImageManipulator.SaveFormat.PNG, base64: true }
         );
-        const dataUri = `data:image/jpeg;base64,${manipResult.base64}`;
+        const dataUri = `data:image/png;base64,${manipResult.base64}`;
         const slideW = RATIOS[ratio].width;
         const targetLeft = (curSlide - 1) * slideW + slideW / 2;
         webRef.current?.injectJavaScript(`window.addImg('${dataUri}', ${targetLeft}); true;`);
@@ -332,12 +360,37 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
     webRef.current?.injectJavaScript(`window.addSticker('${emoji}', ${targetLeft}); true;`);
   };
 
+  const addFrameToCanvas = async (f: import('@/constants/templates').Frame, w: number, h: number) => {
+    if (f.imageAsset === 'local_124') {
+      // 124.jpg'yi base64'e çevir ve canvas'a ekle
+      try {
+        const { Image: RNImage } = require('react-native');
+        const source = require('@/assets/124.jpg');
+        const resolved = RNImage.resolveAssetSource(source);
+        const uri = resolved.uri;
+        const manipResult = await ImageManipulator.manipulateAsync(
+          uri,
+          [],
+          { compress: 0.9, format: ImageManipulator.SaveFormat.JPEG, base64: true }
+        );
+        const dataUri = `data:image/jpeg;base64,${manipResult.base64}`;
+        webRef.current?.injectJavaScript(`window.addFrameImg('${dataUri}', ${w}, ${h}); true;`);
+      } catch (err) {
+        console.error('Frame image load error:', err);
+      }
+    } else if (f.svg) {
+      webRef.current?.injectJavaScript(`window.addFrame(${JSON.stringify(f.svg)}, ${w}, ${h}); true;`);
+    }
+  };
+
   const setBg = (color: string) => {
     setSelColor(color);
     webRef.current?.injectJavaScript(`window.setBg('${color}'); true;`);
   };
 
   const onExport = (data: string, canvasJson?: string) => {
+    if (exportTimerRef.current) { clearInterval(exportTimerRef.current); exportTimerRef.current = null; }
+    setExporting(false);
     webRef.current?.injectJavaScript(`window.showGrid(); true;`);
     router.push({
       pathname: '/preview',
@@ -353,7 +406,14 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
     });
   };
 
-  const goPreview = () => webRef.current?.injectJavaScript(`window.hideGrid(); window.exportCanvas(); true;`);
+  const goPreview = () => {
+    setExporting(true);
+    setExportSecs(0);
+    exportTimerRef.current = setInterval(() => {
+      setExportSecs(s => s + 1);
+    }, 1000);
+    webRef.current?.injectJavaScript(`window.hideGrid(); window.exportCanvas(); true;`);
+  };
 
   const goBack = () => {
     Alert.alert('Leave Editor?', 'Your changes will be lost.', [
@@ -406,6 +466,36 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
           </ScrollView>
         </View>
       );
+      case 'icons': return (
+        <View style={eStyles.panel}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {ICON_CATEGORIES.map(cat => (
+                <TouchableOpacity key={cat.id}
+                  style={[eStyles.catBtn, selIconCat === cat.id && eStyles.catBtnActive]}
+                  onPress={() => setSelIconCat(cat.id)}>
+                  <Text style={[eStyles.catLabel, selIconCat === cat.id && { color: Colors.dark.background }]}>{cat.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+          <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 120 }}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 4 }}>
+              {(ICON_CATEGORIES.find(c => c.id === selIconCat)?.icons || []).map(icon => {
+                const slideW = RATIOS[ratio].width;
+                const svgStr = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${icon.path}"/></svg>`;
+                const dims = RATIOS[ratio];
+                return (
+                  <TouchableOpacity key={icon.id} style={eStyles.iconBtn}
+                    onPress={() => webRef.current?.injectJavaScript(`window.addFrame(${JSON.stringify(svgStr)}, 200, 200); true;`)}>
+                    <Text style={eStyles.iconLabel}>{icon.name}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </ScrollView>
+        </View>
+      );
       case 'elements': return (
         <View style={eStyles.panel}>
           <Text style={eStyles.label}>Cutout Letters</Text>
@@ -420,13 +510,18 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
           </ScrollView>
           <Text style={[eStyles.label, { marginTop: 12 }]}>Frames</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View style={eStyles.stickerRow}>
+            <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 8 }}>
               {FRAMES.map((f) => {
                 const dims = RATIOS[ratio];
                 return (
-                  <TouchableOpacity key={f.id} style={eStyles.frameBtn}
-                    onPress={() => webRef.current?.injectJavaScript(`window.addFrame(${JSON.stringify(f.svg)}, ${dims.width}, ${dims.height}); true;`)}>
+                  <TouchableOpacity
+                    key={f.id}
+                    style={[eStyles.frameBtn, { borderColor: f.color }]}
+                    onPress={() => addFrameToCanvas(f, dims.width, dims.height)}
+                  >
+                    <View style={[eStyles.framePlatformDot, { backgroundColor: f.color }]} />
                     <Text style={eStyles.frameName}>{f.name}</Text>
+                    <Text style={eStyles.frameRatio}>{f.ratio}</Text>
                   </TouchableOpacity>
                 );
               })}
@@ -729,9 +824,13 @@ const eStyles = StyleSheet.create({
   toolColorBtn: { width: 32, height: 32, borderRadius: 16, marginTop: 6 },
   colorPreview: { width: 28, height: 28, borderRadius: 14, borderWidth: 1, borderColor: Colors.dark.border },
   colorPickerBtn: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: Colors.dark.border },
-  frameBtn: { paddingHorizontal: 16, paddingVertical: 10, backgroundColor: Colors.dark.surface, borderRadius: 8, borderWidth: 1, borderColor: Colors.dark.border, justifyContent: 'center', alignItems: 'center', minWidth: 100 },
-  frameName: { fontSize: 12, color: Colors.dark.text, textAlign: 'center' },
+  frameBtn: { paddingHorizontal: 16, paddingVertical: 10, backgroundColor: Colors.dark.surface, borderRadius: 8, borderWidth: 2, borderColor: Colors.dark.border, justifyContent: 'center', alignItems: 'center', minWidth: 110 },
+  frameName: { fontSize: 12, color: Colors.dark.text, textAlign: 'center', fontWeight: '600', marginTop: 4 },
+  frameRatio: { fontSize: 10, color: Colors.dark.textMuted, textAlign: 'center', marginTop: 2, textTransform: 'capitalize' },
+  framePlatformDot: { width: 10, height: 10, borderRadius: 5, marginBottom: 4 },
   catBtn: { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: Colors.dark.surface, borderRadius: 8, borderWidth: 1, borderColor: Colors.dark.border },
   catBtnActive: { backgroundColor: Colors.dark.accent, borderColor: Colors.dark.accent },
   catLabel: { fontSize: 12, color: Colors.dark.text, fontWeight: '500' },
+  iconBtn: { paddingHorizontal: 10, paddingVertical: 8, backgroundColor: Colors.dark.surface, borderRadius: 8, borderWidth: 1, borderColor: Colors.dark.border, minWidth: 60, alignItems: 'center' },
+  iconLabel: { fontSize: 10, color: Colors.dark.text, textAlign: 'center' },
 });

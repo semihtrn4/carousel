@@ -1,0 +1,70 @@
+// icons placeholder
+export type IconItem = { id: string; name: string; path: string };
+export type IconCategory = { id: string; label: string; icons: IconItem[] };
+
+export const ICON_CATEGORIES: IconCategory[] = [
+  { id: 'shapes', label: 'Şekiller', icons: [
+    { id: 'circle', name: 'Daire', path: 'M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z' },
+    { id: 'square', name: 'Kare', path: 'M3 3h18v18H3z' },
+    { id: 'triangle', name: 'Üçgen', path: 'M12 2L2 22h20L12 2z' },
+    { id: 'diamond', name: 'Elmas', path: 'M12 2l10 10-10 10L2 12z' },
+    { id: 'star', name: 'Yıldız', path: 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z' },
+    { id: 'heart', name: 'Kalp', path: 'M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z' },
+    { id: 'hexagon', name: 'Altıgen', path: 'M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z' },
+    { id: 'cross', name: 'Artı', path: 'M12 2v20M2 12h20' },
+  ]},
+  { id: 'arrows', label: 'Oklar', icons: [
+    { id: 'arrow-right', name: 'Sağ Ok', path: 'M5 12h14M12 5l7 7-7 7' },
+    { id: 'arrow-left', name: 'Sol Ok', path: 'M19 12H5M12 19l-7-7 7-7' },
+    { id: 'arrow-up', name: 'Yukarı Ok', path: 'M12 19V5M5 12l7-7 7 7' },
+    { id: 'arrow-down', name: 'Aşağı Ok', path: 'M12 5v14M19 12l-7 7-7-7' },
+    { id: 'chevron-right', name: 'Chevron Sağ', path: 'M9 18l6-6-6-6' },
+    { id: 'chevron-left', name: 'Chevron Sol', path: 'M15 18l-6-6 6-6' },
+    { id: 'chevron-up', name: 'Chevron Yukarı', path: 'M18 15l-6-6-6 6' },
+    { id: 'chevron-down', name: 'Chevron Aşağı', path: 'M6 9l6 6 6-6' },
+  ]},
+  { id: 'social', label: 'Sosyal', icons: [
+    { id: 'instagram', name: 'Instagram', path: 'M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37zM17.5 6.5h.01M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5z' },
+    { id: 'twitter', name: 'Twitter', path: 'M23 3a10.9 10.9 0 0 1-3.14 1.53 4.48 4.48 0 0 0-7.86 3v1A10.66 10.66 0 0 1 3 4s-4 9 5 13a11.64 11.64 0 0 1-7 2c9 5 20 0 20-11.5a4.5 4.5 0 0 0-.08-.83A7.72 7.72 0 0 0 23 3z' },
+    { id: 'youtube', name: 'YouTube', path: 'M22.54 6.42a2.78 2.78 0 0 0-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46a2.78 2.78 0 0 0-1.95 1.96A29 29 0 0 0 1 12a29 29 0 0 0 .46 5.58A2.78 2.78 0 0 0 3.41 19.6C5.12 20 12 20 12 20s6.88 0 8.59-.46a2.78 2.78 0 0 0 1.95-1.95A29 29 0 0 0 23 12a29 29 0 0 0-.46-5.58zM9.75 15.02V8.98L15.5 12l-5.75 3.02z' },
+    { id: 'hash', name: 'Hashtag', path: 'M4 9h16M4 15h16M10 3L8 21M16 3l-2 18' },
+    { id: 'at-sign', name: 'Mention', path: 'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0zM12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM21 12v1a2 2 0 0 1-4 0v-1' },
+    { id: 'share', name: 'Paylaş', path: 'M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v13' },
+  ]},
+  { id: 'nature', label: 'Doğa', icons: [
+    { id: 'sun', name: 'Güneş', path: 'M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41M12 6a6 6 0 1 0 0 12A6 6 0 0 0 12 6z' },
+    { id: 'moon', name: 'Ay', path: 'M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z' },
+    { id: 'cloud', name: 'Bulut', path: 'M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z' },
+    { id: 'leaf', name: 'Yaprak', path: 'M17 8C8 10 5.9 16.17 3.82 19.34L2 22l1-.5c1-.5 3-1.5 5-3 2.5-2 4-4 5-6 1 2 2 4 4 5 2 1 4 1.5 5 1.5-1-2-2-5-5-9z' },
+    { id: 'mountain', name: 'Dağ', path: 'M3 20l7-14 4 8 2-4 5 10H3z' },
+    { id: 'waves', name: 'Dalga', path: 'M2 6c.6.5 1.2 1 2.5 1C7 7 7 5 9.5 5c2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1M2 12c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1' },
+    { id: 'flame', name: 'Alev', path: 'M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z' },
+    { id: 'snowflake', name: 'Kar', path: 'M2 12h20M12 2v20M4.93 4.93l14.14 14.14M19.07 4.93L4.93 19.07' },
+  ]},
+  { id: 'travel', label: 'Seyahat', icons: [
+    { id: 'plane', name: 'Uçak', path: 'M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z' },
+    { id: 'map-pin', name: 'Konum', path: 'M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0zM12 10a1 1 0 1 0 0-2 1 1 0 0 0 0 2z' },
+    { id: 'compass', name: 'Pusula', path: 'M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zM16.24 7.76l-2.12 6.36-6.36 2.12 2.12-6.36 6.36-2.12z' },
+    { id: 'camera', name: 'Kamera', path: 'M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2zM12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z' },
+    { id: 'globe', name: 'Dünya', path: 'M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zM2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z' },
+    { id: 'anchor', name: 'Çapa', path: 'M12 8a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 8v14M8 12H2a10 10 0 0 0 20 0h-6' },
+  ]},
+  { id: 'tech', label: 'Teknoloji', icons: [
+    { id: 'smartphone', name: 'Telefon', path: 'M17 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zM12 18h.01' },
+    { id: 'wifi', name: 'WiFi', path: 'M5 12.55a11 11 0 0 1 14.08 0M1.42 9a16 16 0 0 1 21.16 0M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01' },
+    { id: 'headphones', name: 'Kulaklık', path: 'M3 18v-6a9 9 0 0 1 18 0v6M3 18a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3zM21 18a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3z' },
+    { id: 'mic', name: 'Mikrofon', path: 'M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3zM19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8' },
+    { id: 'code', name: 'Kod', path: 'M16 18l6-6-6-6M8 6l-6 6 6 6' },
+    { id: 'cpu', name: 'İşlemci', path: 'M18 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zM9 9h6v6H9z' },
+  ]},
+  { id: 'lifestyle', label: 'Yaşam', icons: [
+    { id: 'coffee', name: 'Kahve', path: 'M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8zM6 1v3M10 1v3M14 1v3' },
+    { id: 'music', name: 'Müzik', path: 'M9 18V5l12-2v13M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM21 16a3 3 0 1 1-6 0 3 3 0 0 1 6 0z' },
+    { id: 'book', name: 'Kitap', path: 'M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 19.5A2.5 2.5 0 0 0 6.5 22H20V2H6.5A2.5 2.5 0 0 0 4 4.5v15z' },
+    { id: 'gift', name: 'Hediye', path: 'M20 12v10H4V12M22 7H2v5h20V7zM12 22V7M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z' },
+    { id: 'crown', name: 'Taç', path: 'M2 20h20M5 20V10l7-7 7 7v10' },
+    { id: 'award', name: 'Ödül', path: 'M12 15a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM8.21 13.89L7 23l5-3 5 3-1.21-9.12' },
+    { id: 'zap', name: 'Şimşek', path: 'M13 2L3 14h9l-1 8 10-12h-9l1-8z' },
+    { id: 'sparkles', name: 'Parıltı', path: 'M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3zM5 17l.75 2.25L8 20l-2.25.75L5 23l-.75-2.25L2 20l2.25-.75L5 17zM19 1l.75 2.25L22 4l-2.25.75L19 7l-.75-2.25L16 4l2.25-.75L19 1z' },
+  ]},
+];
