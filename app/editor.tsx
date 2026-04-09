@@ -6,15 +6,18 @@ import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
-import { ArrowLeft, Undo, Redo, Image as ImageIcon, Type, Sticker, Palette, Eye, X, Check } from 'lucide-react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ArrowLeft, Undo, Redo, Image as ImageIcon, Type, Sticker, Palette, Eye, X, Check, Layers, LayoutGrid } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
-import { TEMPLATES, STICKERS, FONTS } from '@/constants/templates';
+import { TEMPLATES, STICKERS, FONTS, CUTOUT_LETTERS, FRAMES, STICKER_CATEGORIES } from '@/constants/templates';
 
 const TABS = [
   { id: 'photos', icon: ImageIcon, label: 'Photos' },
   { id: 'text', icon: Type, label: 'Text' },
   { id: 'stickers', icon: Sticker, label: 'Stickers' },
+  { id: 'elements', icon: LayoutGrid, label: 'Elements' },
   { id: 'background', icon: Palette, label: 'BG' },
+  { id: 'layers', icon: Layers, label: 'Layers' },
 ];
 
 const COLORS_LIST = [
@@ -29,7 +32,8 @@ const RATIOS = {
   landscape: { width: 1920, height: 1080 },
 };
 
-const EDITOR_VERSION = 'carousel_v1';
+type LayerItem = { id: string; type: string; visible: boolean; name: string };
+type SelectedObject = { id: string; type: string; opacity: number; fill: string | null; shadow: number } | null;
 
 export default function EditorScreen() {
   const router = useRouter();
@@ -41,18 +45,21 @@ export default function EditorScreen() {
   const [slides, setSlides] = useState(parseInt(params.slides as string) || 3);
   const [ratio, setRatio] = useState<'square' | 'portrait' | 'story' | 'landscape'>((params.ratio as any) || 'portrait');
   const [canvasW, setCanvasW] = useState(3240);
-  const [canvasH, setCanvasH] = useState(1350);
   const [selColor, setSelColor] = useState('#F5F5F0');
   const [textVal, setTextVal] = useState('');
   const [selFont, setSelFont] = useState(FONTS[0]);
   const [fontSize, setFontSize] = useState(48);
   const [showText, setShowText] = useState(false);
   const [curSlide, setCurSlide] = useState(1);
+  const [layers, setLayers] = useState<LayerItem[]>([]);
+  const [selectedObject, setSelectedObject] = useState<SelectedObject>(null);
+  const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
+  const [selStickerCat, setSelStickerCat] = useState('general');
+  const [showColorPicker, setShowColorPicker] = useState<'fill' | 'stroke' | null>(null);
 
   useEffect(() => {
     const dims = RATIOS[ratio];
     setCanvasW(dims.width * slides);
-    setCanvasH(dims.height);
   }, [slides, ratio]);
 
   useEffect(() => {
@@ -64,6 +71,34 @@ export default function EditorScreen() {
       }
     }
   }, [params.templateId]);
+
+  // Mevcut projeyi yükle
+  useEffect(() => {
+    if (params.projectId) {
+      (async () => {
+        try {
+          const stored = await AsyncStorage.getItem('carousel_projects');
+          if (stored) {
+            const projects = JSON.parse(stored);
+            const project = projects.find((p: any) => p.id === params.projectId);
+            if (project) {
+              setSlides(project.slides);
+              setRatio(project.ratio);
+              if (project.canvasData) {
+                // Canvas yüklendikten sonra JSON'u restore et
+                const json = project.canvasData;
+                setTimeout(() => {
+                  webRef.current?.injectJavaScript(`c.loadFromJSON(${JSON.stringify(json)}, c.renderAll.bind(c)); true;`);
+                }, 1500);
+              }
+            }
+          }
+        } catch (err) {
+          console.error('Project load error:', err);
+        }
+      })();
+    }
+  }, [params.projectId]);
 
   const html = () => {
     const dims = RATIOS[ratio];
@@ -93,7 +128,20 @@ for (let i = 1; i < ${slides}; i++) { const line = document.createElement('div')
 const MOBILE_CONTROLS = { cornerColor: '#fff', cornerStrokeColor: '#333', borderColor: '#06FFB4', cornerSize: 20, transparentCorners: false, hasRotatingPoint: false };
 let undoStack = [], redoStack = [];
 function save() { undoStack.push(JSON.stringify(c)); redoStack = []; if (undoStack.length > 20) undoStack.shift(); }
-c.on('object:added', save); c.on('object:modified', save); c.on('object:removed', save);
+window.hideGrid = () => { document.querySelectorAll('.grid').forEach(el => el.style.display = 'none'); };
+window.showGrid = () => { document.querySelectorAll('.grid').forEach(el => el.style.display = 'block'); };
+function sendLayersUpdate() {
+  const layers = c.getObjects().map(obj => ({
+    id: obj.id,
+    type: obj.type,
+    visible: obj.visible !== false,
+    name: obj.type === 'text' ? (obj.text || '').substring(0, 10) : obj.type
+  }));
+  window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'layersUpdate', layers }));
+}
+c.on('object:added', () => { save(); sendLayersUpdate(); });
+c.on('object:removed', () => { save(); sendLayersUpdate(); });
+c.on('object:modified', () => { save(); sendLayersUpdate(); });
 const scaleToFit = window.innerWidth / ${w};
 let canvasScale = scaleToFit;
 c.setZoom(scaleToFit);
@@ -101,14 +149,48 @@ c.setWidth(window.innerWidth);
 c.setHeight(${h} * scaleToFit);
 cont.style.transform = '';
 function getVisibleCenterY() { return (c.getHeight() / 2) / c.getZoom(); }
-window.addImg = (src, targetLeft) => { fabric.Image.fromURL(src, (img) => { const scale = Math.min(${dims.width} / img.width, ${h} / img.height * 0.5); img.set({ left: targetLeft || (${w / 2}), top: getVisibleCenterY(), scaleX: scale, scaleY: scale, ...MOBILE_CONTROLS }); c.add(img); c.setActiveObject(img); c.renderAll(); }); };
-window.addTxt = (txt, opts) => { const t = new fabric.Text(txt, { left: opts.left || ${w / 2}, top: getVisibleCenterY(), fontFamily: opts.fontFamily || 'Arial', fontSize: opts.fontSize || 48, fill: opts.color || '#000', textAlign: 'center', originX: 'center', originY: 'center', ...MOBILE_CONTROLS }); c.add(t); c.setActiveObject(t); c.renderAll(); };
-window.addSticker = (emoji, left) => { const t = new fabric.Text(emoji, { left: left || ${w / 2}, top: getVisibleCenterY(), fontSize: 100, originX: 'center', originY: 'center', ...MOBILE_CONTROLS }); c.add(t); c.setActiveObject(t); c.renderAll(); };
+window.addImg = (src, targetLeft) => { fabric.Image.fromURL(src, (img) => { const scale = Math.min(${dims.width} / img.width, ${h} / img.height * 0.5); img.set({ id: Date.now().toString(), left: targetLeft || (${w / 2}), top: getVisibleCenterY(), scaleX: scale, scaleY: scale, ...MOBILE_CONTROLS }); c.add(img); c.setActiveObject(img); c.renderAll(); }); };
+window.addTxt = (txt, opts) => { const t = new fabric.Text(txt, { id: Date.now().toString(), left: opts.left || ${w / 2}, top: getVisibleCenterY(), fontFamily: opts.fontFamily || 'Arial', fontSize: opts.fontSize || 48, fill: opts.color || '#000', textAlign: 'center', originX: 'center', originY: 'center', ...MOBILE_CONTROLS }); c.add(t); c.setActiveObject(t); c.renderAll(); };
+window.addSticker = (emoji, left) => { const t = new fabric.Text(emoji, { id: Date.now().toString(), left: left || ${w / 2}, top: getVisibleCenterY(), fontSize: 100, originX: 'center', originY: 'center', ...MOBILE_CONTROLS }); c.add(t); c.setActiveObject(t); c.renderAll(); };
 window.setBg = (color) => { c.setBackgroundColor(color, c.renderAll.bind(c)); };
 window.undo = () => { if (undoStack.length > 1) { redoStack.push(undoStack.pop()); const s = undoStack[undoStack.length - 1]; c.loadFromJSON(s, c.renderAll.bind(c)); } };
 window.redo = () => { if (redoStack.length > 0) { const s = redoStack.pop(); undoStack.push(s); c.loadFromJSON(s, c.renderAll.bind(c)); } };
-window.exportCanvas = () => { const data = c.toDataURL({ format: 'png', quality: 1, multiplier: 1 }); window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'export', data })); };
+window.exportCanvas = () => { const data = c.toDataURL({ format: 'png', quality: 1, multiplier: 1 }); const json = JSON.stringify(c.toJSON(['id'])); window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'export', data, canvasJson: json })); };
 window.deleteSel = () => { const a = c.getActiveObject(); if (a) { c.remove(a); c.discardActiveObject(); c.renderAll(); } };
+window.selectObject = (id) => { const obj = c.getObjects().find(o => o.id === id); if (!obj) return; c.setActiveObject(obj); c.renderAll(); };
+window.bringForward = (id) => { const obj = c.getObjects().find(o => o.id === id); if (!obj) return; c.bringForward(obj); c.renderAll(); sendLayersUpdate(); };
+window.sendBackward = (id) => { const obj = c.getObjects().find(o => o.id === id); if (!obj) return; c.sendBackwards(obj); c.renderAll(); sendLayersUpdate(); };
+window.toggleVisibility = (id) => { const obj = c.getObjects().find(o => o.id === id); if (!obj) return; obj.set({ visible: !obj.visible }); c.renderAll(); sendLayersUpdate(); };
+window.duplicateSel = () => { const a = c.getActiveObject(); if (!a) return; a.clone(cloned => { cloned.set({ left: a.left + 20, top: a.top + 20, id: Date.now().toString() }); c.add(cloned); c.setActiveObject(cloned); c.renderAll(); }); };
+window.setOpacity = (v) => { const a = c.getActiveObject(); if (!a) return; a.set({ opacity: v }); c.renderAll(); };
+window.setBlur = (v) => { const a = c.getActiveObject(); if (!a) return; a.set({ shadow: v > 0 ? new fabric.Shadow({ blur: v, color: 'rgba(0,0,0,0.5)' }) : null }); c.renderAll(); };
+window.setStroke = (color, width) => { const a = c.getActiveObject(); if (!a) return; a.set({ stroke: color, strokeWidth: width }); c.renderAll(); };
+window.setFill = (color) => { const a = c.getActiveObject(); if (!a) return; a.set({ fill: color }); c.renderAll(); };
+window.moveToSlide = (slideIndex, slideWidth) => { const a = c.getActiveObject(); if (!a) return; a.set({ left: (slideIndex - 1) * slideWidth + slideWidth / 2 }); a.setCoords(); c.renderAll(); };
+window.addFrame = (svgStr, w, h) => { fabric.loadSVGFromString(svgStr, (objects, options) => { const svg = fabric.util.groupSVGElements(objects, options); svg.set({ left: 0, top: 0, scaleX: w / svg.width, scaleY: h / svg.height, id: Date.now().toString(), selectable: true, ...MOBILE_CONTROLS }); c.add(svg); c.renderAll(); }); };
+c.on('selection:created', (e) => {
+  const obj = e.selected[0];
+  if (!obj) return;
+  window.ReactNativeWebView.postMessage(JSON.stringify({
+    type: 'objectSelected',
+    objectId: obj.id,
+    objectType: obj.type,
+    properties: { opacity: obj.opacity || 1, fill: obj.fill || null, shadow: (obj.shadow && obj.shadow.blur) || 0 }
+  }));
+});
+c.on('selection:updated', (e) => {
+  const obj = e.selected[0];
+  if (!obj) return;
+  window.ReactNativeWebView.postMessage(JSON.stringify({
+    type: 'objectSelected',
+    objectId: obj.id,
+    objectType: obj.type,
+    properties: { opacity: obj.opacity || 1, fill: obj.fill || null, shadow: (obj.shadow && obj.shadow.blur) || 0 }
+  }));
+});
+c.on('selection:cleared', () => {
+  window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'objectDeselected' }));
+});
 let touchStartX = 0;
 let touchStartY = 0;
 let isDragging = false;
@@ -182,9 +264,20 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
     try {
       const m = JSON.parse(e.nativeEvent.data);
       if (m.type === 'ready') setLoading(false);
-      else if (m.type === 'export') onExport(m.data);
+      else if (m.type === 'export') onExport(m.data, m.canvasJson);
       else if (m.type === 'slideChange') {
         setCurSlide(prev => Math.max(1, Math.min(slides, prev + m.dir)));
+      }
+      else if (m.type === 'layersUpdate') {
+        setLayers(m.layers);
+      }
+      else if (m.type === 'objectSelected') {
+        setSelectedObjectId(m.objectId);
+        setSelectedObject({ id: m.objectId, type: m.objectType, ...m.properties });
+      }
+      else if (m.type === 'objectDeselected') {
+        setSelectedObjectId(null);
+        setSelectedObject(null);
       }
     } catch (err) { console.error('Msg error:', err); }
   };
@@ -229,11 +322,23 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
     webRef.current?.injectJavaScript(`window.setBg('${color}'); true;`);
   };
 
-  const onExport = (data: string) => {
-    router.push({ pathname: '/preview', params: { imageData: data, slides: slides.toString(), ratio, width: canvasW.toString(), height: canvasH.toString() } });
+  const onExport = (data: string, canvasJson?: string) => {
+    webRef.current?.injectJavaScript(`window.showGrid(); true;`);
+    router.push({
+      pathname: '/preview',
+      params: {
+        imageData: data,
+        slides: slides.toString(),
+        ratio,
+        width: canvasW.toString(),
+        height: (RATIOS[ratio].height).toString(),
+        projectId: (params.projectId as string) || '',
+        canvasData: canvasJson || '',
+      }
+    });
   };
 
-  const goPreview = () => webRef.current?.injectJavaScript(`window.exportCanvas(); true;`);
+  const goPreview = () => webRef.current?.injectJavaScript(`window.hideGrid(); window.exportCanvas(); true;`);
 
   const goBack = () => {
     Alert.alert('Leave Editor?', 'Your changes will be lost.', [
@@ -264,13 +369,52 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
       );
       case 'stickers': return (
         <View style={eStyles.panel}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {STICKER_CATEGORIES.map(cat => (
+                <TouchableOpacity key={cat.id}
+                  style={[eStyles.catBtn, selStickerCat === cat.id && eStyles.catBtnActive]}
+                  onPress={() => setSelStickerCat(cat.id)}>
+                  <Text style={[eStyles.catLabel, selStickerCat === cat.id && { color: Colors.dark.background }]}>{cat.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View style={eStyles.stickerRow}>
-              {STICKERS.map((s) => (
+              {(STICKER_CATEGORIES.find(c => c.id === selStickerCat)?.stickers || []).map((s) => (
                 <TouchableOpacity key={s.id} style={eStyles.stickerBtn} onPress={() => addSticker(s.emoji)}>
                   <Text style={eStyles.stickerEmoji}>{s.emoji}</Text>
                 </TouchableOpacity>
               ))}
+            </View>
+          </ScrollView>
+        </View>
+      );
+      case 'elements': return (
+        <View style={eStyles.panel}>
+          <Text style={eStyles.label}>Cutout Letters</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View style={eStyles.stickerRow}>
+              {CUTOUT_LETTERS.map((l) => (
+                <TouchableOpacity key={l.id} style={eStyles.stickerBtn} onPress={() => addSticker(l.emoji)}>
+                  <Text style={eStyles.stickerEmoji}>{l.emoji}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+          <Text style={[eStyles.label, { marginTop: 12 }]}>Frames</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View style={eStyles.stickerRow}>
+              {FRAMES.map((f) => {
+                const dims = RATIOS[ratio];
+                return (
+                  <TouchableOpacity key={f.id} style={eStyles.frameBtn}
+                    onPress={() => webRef.current?.injectJavaScript(`window.addFrame(${JSON.stringify(f.svg)}, ${dims.width}, ${dims.height}); true;`)}>
+                    <Text style={eStyles.frameName}>{f.name}</Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </ScrollView>
         </View>
@@ -287,6 +431,32 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
             </View>
           </ScrollView>
         </View>
+      );
+      case 'layers': return (
+        <ScrollView style={{ maxHeight: 160 }}>
+          {layers.length === 0 ? (
+            <Text style={eStyles.hint}>Canvas boş</Text>
+          ) : (
+            layers.slice().reverse().map((layer) => (
+              <View key={layer.id} style={eStyles.layerRow}>
+                <TouchableOpacity style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}
+                  onPress={() => webRef.current?.injectJavaScript(`window.selectObject('${layer.id}'); true;`)}>
+                  <Text style={eStyles.layerIcon}>{layer.type === 'text' ? 'T' : layer.type === 'image' ? '🖼' : '◻'}</Text>
+                  <Text style={[eStyles.layerName, selectedObjectId === layer.id && { color: Colors.dark.accent }]} numberOfLines={1}>{layer.name}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => webRef.current?.injectJavaScript(`window.bringForward('${layer.id}'); true;`)}>
+                  <Text style={eStyles.layerBtn}>↑</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => webRef.current?.injectJavaScript(`window.sendBackward('${layer.id}'); true;`)}>
+                  <Text style={eStyles.layerBtn}>↓</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => webRef.current?.injectJavaScript(`window.toggleVisibility('${layer.id}'); true;`)}>
+                  <Text style={eStyles.layerBtn}>{layer.visible ? '👁' : '🚫'}</Text>
+                </TouchableOpacity>
+              </View>
+            ))
+          )}
+        </ScrollView>
       );
       default: return <View style={eStyles.panel}><Text style={eStyles.hint}>Coming soon</Text></View>;
     }
@@ -325,6 +495,65 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
         <WebView ref={webRef} source={{ html: html() }} style={eStyles.webview} onMessage={onMsg} javaScriptEnabled domStorageEnabled scrollEnabled={false} bounces={false} />
       </View>
 
+      {layers.length > 0 && (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={eStyles.elementTray} contentContainerStyle={{ gap: 8, paddingHorizontal: 12, paddingVertical: 6 }}>
+          {layers.map((layer) => (
+            <TouchableOpacity key={layer.id}
+              style={[eStyles.trayItem, selectedObjectId === layer.id && eStyles.trayItemActive]}
+              onPress={() => webRef.current?.injectJavaScript(`window.selectObject('${layer.id}'); true;`)}>
+              <Text style={{ fontSize: 20 }}>{layer.type === 'text' ? 'T' : layer.type === 'image' ? '🖼' : '◻'}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      )}
+
+      {selectedObject && (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={eStyles.objectToolbar} contentContainerStyle={{ gap: 4, paddingHorizontal: 12, paddingVertical: 8 }}>
+          <TouchableOpacity style={eStyles.toolBtn} onPress={() => webRef.current?.injectJavaScript(`window.deleteSel(); true;`)}>
+            <Text style={eStyles.toolIcon}>🗑</Text>
+            <Text style={eStyles.toolLabel}>Delete</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={eStyles.toolBtn} onPress={() => webRef.current?.injectJavaScript(`window.duplicateSel(); true;`)}>
+            <Text style={eStyles.toolIcon}>⧉</Text>
+            <Text style={eStyles.toolLabel}>Duplicate</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={eStyles.toolBtn} onPress={() => webRef.current?.injectJavaScript(`window.bringForward('${selectedObject.id}'); true;`)}>
+            <Text style={eStyles.toolIcon}>↑</Text>
+            <Text style={eStyles.toolLabel}>Forward</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={eStyles.toolBtn} onPress={() => webRef.current?.injectJavaScript(`window.sendBackward('${selectedObject.id}'); true;`)}>
+            <Text style={eStyles.toolIcon}>↓</Text>
+            <Text style={eStyles.toolLabel}>Backward</Text>
+          </TouchableOpacity>
+          {/* Opacity: 5 seviye */}
+          {[1, 0.75, 0.5, 0.25].map(v => (
+            <TouchableOpacity key={v} style={eStyles.toolBtn}
+              onPress={() => webRef.current?.injectJavaScript(`window.setOpacity(${v}); true;`)}>
+              <Text style={[eStyles.toolIcon, { opacity: v }]}>◎</Text>
+              <Text style={eStyles.toolLabel}>{Math.round(v * 100)}%</Text>
+            </TouchableOpacity>
+          ))}
+          {/* Blur: 3 seviye */}
+          {[0, 10, 25].map(v => (
+            <TouchableOpacity key={`blur-${v}`} style={eStyles.toolBtn}
+              onPress={() => webRef.current?.injectJavaScript(`window.setBlur(${v}); true;`)}>
+              <Text style={eStyles.toolIcon}>≋</Text>
+              <Text style={eStyles.toolLabel}>Blur {v}</Text>
+            </TouchableOpacity>
+          ))}
+          {/* Fill renk butonu */}
+          <TouchableOpacity style={eStyles.toolBtn} onPress={() => setShowColorPicker('fill')}>
+            <View style={[eStyles.colorPreview, { backgroundColor: selectedObject.fill || '#000' }]} />
+            <Text style={eStyles.toolLabel}>Fill</Text>
+          </TouchableOpacity>
+          {/* Stroke renk butonu */}
+          <TouchableOpacity style={eStyles.toolBtn} onPress={() => setShowColorPicker('stroke')}>
+            <View style={[eStyles.colorPreview, { backgroundColor: 'transparent', borderWidth: 3, borderColor: '#fff' }]} />
+            <Text style={eStyles.toolLabel}>Stroke</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      )}
+
       <View style={eStyles.indicator}>
         <Text style={eStyles.indicatorText}>Slide {curSlide} of {slides}</Text>
         <View style={eStyles.dots}>
@@ -347,6 +576,56 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
           })}
         </View>
       </View>
+
+      {/* Renk Seçici Modal */}
+      <Modal visible={showColorPicker !== null} transparent animationType="slide" onRequestClose={() => setShowColorPicker(null)}>
+        <View style={eStyles.modalOverlay}>
+          <View style={eStyles.modalContent}>
+            <View style={eStyles.modalHeader}>
+              <Text style={eStyles.modalTitle}>{showColorPicker === 'fill' ? 'Fill Color' : 'Stroke Color'}</Text>
+              <TouchableOpacity onPress={() => setShowColorPicker(null)}><X size={24} color={Colors.dark.text} /></TouchableOpacity>
+            </View>
+            {/* Tam renk paleti */}
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center' }}>
+              {[
+                '#FFFFFF', '#F5F5F0', '#E8E8E8', '#D0D0D0', '#A0A0A0', '#606060', '#2A2A2A', '#000000',
+                '#FF006E', '#FF4444', '#FF7700', '#FFBE0B', '#FFE4E1',
+                '#06FFB4', '#3A86FF', '#8338EC', '#9B59B6', '#98FB98',
+                '#E6E6FA', '#FFD6E0', '#F4E4C1', '#1A0A2E', '#1C1C1E',
+                '#FB5607', '#E8D5C4', '#FFD700', '#00CED1',
+                '#FF69B4', '#7B68EE', '#20B2AA', '#FF8C00', '#DC143C',
+              ].map((c, idx) => (
+                <TouchableOpacity
+                  key={`${c}-${idx}`}
+                  style={[eStyles.colorPickerBtn, { backgroundColor: c }]}
+                  onPress={() => {
+                    if (showColorPicker === 'fill') {
+                      webRef.current?.injectJavaScript(`window.setFill('${c}'); true;`);
+                      setSelectedObject(prev => prev ? { ...prev, fill: c } : null);
+                    } else {
+                      webRef.current?.injectJavaScript(`window.setStroke('${c}', 4); true;`);
+                    }
+                    setShowColorPicker(null);
+                  }}
+                />
+              ))}
+            </View>
+            {/* Şeffaf / renk kaldır */}
+            <TouchableOpacity
+              style={[eStyles.actionBtn, { marginTop: 16 }]}
+              onPress={() => {
+                if (showColorPicker === 'fill') {
+                  webRef.current?.injectJavaScript(`window.setFill('transparent'); true;`);
+                } else {
+                  webRef.current?.injectJavaScript(`window.setStroke('', 0); true;`);
+                }
+                setShowColorPicker(null);
+              }}>
+              <Text style={eStyles.actionText}>Remove {showColorPicker === 'fill' ? 'Fill' : 'Stroke'}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       <Modal visible={showText} transparent animationType="slide" onRequestClose={() => setShowText(false)}>
         <View style={eStyles.modalOverlay}>
@@ -421,4 +700,23 @@ const eStyles = StyleSheet.create({
   fontNameActive: { color: Colors.dark.background, fontWeight: '500' },
   addBtn: { backgroundColor: Colors.dark.accent, paddingVertical: 16, borderRadius: 12, alignItems: 'center', marginTop: 20 },
   addBtnText: { fontSize: 16, fontWeight: '600', color: Colors.dark.background },
+  layerRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: Colors.dark.border },
+  layerIcon: { fontSize: 16, width: 24, textAlign: 'center', color: Colors.dark.textSecondary },
+  layerName: { fontSize: 13, color: Colors.dark.text, flex: 1 },
+  layerBtn: { fontSize: 18, paddingHorizontal: 8, color: Colors.dark.textSecondary },
+  elementTray: { backgroundColor: Colors.dark.background, borderTopWidth: 1, borderTopColor: Colors.dark.border, maxHeight: 60 },
+  trayItem: { width: 44, height: 44, borderRadius: 8, backgroundColor: Colors.dark.surface, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: 'transparent' },
+  trayItemActive: { borderColor: Colors.dark.accent },
+  objectToolbar: { backgroundColor: Colors.dark.surfaceElevated, borderTopWidth: 1, borderTopColor: Colors.dark.border, maxHeight: 80 },
+  toolBtn: { alignItems: 'center', paddingHorizontal: 10, paddingVertical: 4, minWidth: 52 },
+  toolIcon: { fontSize: 20 },
+  toolLabel: { fontSize: 10, color: Colors.dark.textMuted, marginTop: 2 },
+  toolColorBtn: { width: 32, height: 32, borderRadius: 16, marginTop: 6 },
+  colorPreview: { width: 28, height: 28, borderRadius: 14, borderWidth: 1, borderColor: Colors.dark.border },
+  colorPickerBtn: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: Colors.dark.border },
+  frameBtn: { paddingHorizontal: 16, paddingVertical: 10, backgroundColor: Colors.dark.surface, borderRadius: 8, borderWidth: 1, borderColor: Colors.dark.border, justifyContent: 'center', alignItems: 'center', minWidth: 100 },
+  frameName: { fontSize: 12, color: Colors.dark.text, textAlign: 'center' },
+  catBtn: { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: Colors.dark.surface, borderRadius: 8, borderWidth: 1, borderColor: Colors.dark.border },
+  catBtnActive: { backgroundColor: Colors.dark.accent, borderColor: Colors.dark.accent },
+  catLabel: { fontSize: 12, color: Colors.dark.text, fontWeight: '500' },
 });

@@ -63,3 +63,84 @@ export const FONTS = [
   { id: 'font-optima', name: 'Optima', family: 'Optima, Candara, sans-serif' },
   { id: 'font-baskerville', name: 'Baskerville', family: "Baskerville, 'Times New Roman', serif" },
 ];
+
+export type CutoutLetter = { id: string; letter: string; emoji: string };
+
+export const CUTOUT_LETTERS: CutoutLetter[] = [
+  { id: 'letter-A', letter: 'A', emoji: '🅰️' },
+  { id: 'letter-B', letter: 'B', emoji: '🅱️' },
+  { id: 'letter-C', letter: 'C', emoji: '🇨' },
+  { id: 'letter-D', letter: 'D', emoji: '🇩' },
+  { id: 'letter-E', letter: 'E', emoji: '🇪' },
+  { id: 'letter-F', letter: 'F', emoji: '🇫' },
+  { id: 'letter-G', letter: 'G', emoji: '🇬' },
+  { id: 'letter-H', letter: 'H', emoji: '🇭' },
+  { id: 'letter-I', letter: 'I', emoji: '🇮' },
+  { id: 'letter-J', letter: 'J', emoji: '🇯' },
+  { id: 'letter-K', letter: 'K', emoji: '🇰' },
+  { id: 'letter-L', letter: 'L', emoji: '🇱' },
+  { id: 'letter-M', letter: 'M', emoji: '🇲' },
+  { id: 'letter-N', letter: 'N', emoji: '🇳' },
+  { id: 'letter-O', letter: 'O', emoji: '🇴' },
+  { id: 'letter-P', letter: 'P', emoji: '🇵' },
+  { id: 'letter-Q', letter: 'Q', emoji: '🇶' },
+  { id: 'letter-R', letter: 'R', emoji: '🇷' },
+  { id: 'letter-S', letter: 'S', emoji: '🇸' },
+  { id: 'letter-T', letter: 'T', emoji: '🇹' },
+  { id: 'letter-U', letter: 'U', emoji: '🇺' },
+  { id: 'letter-V', letter: 'V', emoji: '🇻' },
+  { id: 'letter-W', letter: 'W', emoji: '🇼' },
+  { id: 'letter-X', letter: 'X', emoji: '🇽' },
+  { id: 'letter-Y', letter: 'Y', emoji: '🇾' },
+  { id: 'letter-Z', letter: 'Z', emoji: '🇿' },
+];
+
+export type Frame = { id: string; name: string; platform: string; ratio: string; svg: string };
+
+export const FRAMES: Frame[] = [
+  {
+    id: 'frame-ig-post',
+    name: 'Instagram Post',
+    platform: 'instagram',
+    ratio: 'square',
+    svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1080"><rect x="10" y="10" width="1060" height="1060" rx="20" ry="20" fill="none" stroke="white" stroke-width="8" stroke-dasharray="20,10"/><rect x="30" y="30" width="1020" height="1020" rx="15" ry="15" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="3"/></svg>`
+  },
+  {
+    id: 'frame-ig-story',
+    name: 'Instagram Story',
+    platform: 'instagram',
+    ratio: 'story',
+    svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920"><rect x="10" y="10" width="1060" height="1900" rx="40" ry="40" fill="none" stroke="white" stroke-width="8" stroke-dasharray="20,10"/><text x="540" y="1880" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-size="36" font-family="Arial">Instagram Story</text></svg>`
+  },
+  {
+    id: 'frame-tiktok',
+    name: 'TikTok',
+    platform: 'tiktok',
+    ratio: 'story',
+    svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920"><rect x="10" y="10" width="1060" height="1900" rx="20" ry="20" fill="none" stroke="#69C9D0" stroke-width="8"/><rect x="10" y="10" width="1060" height="1900" rx="20" ry="20" fill="none" stroke="#EE1D52" stroke-width="4" stroke-dasharray="30,15" opacity="0.7"/><text x="540" y="1880" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-size="36" font-family="Arial">TikTok</text></svg>`
+  },
+];
+
+export type StickerCategory = { id: string; label: string; stickers: Array<{ id: string; emoji: string }> };
+
+export const STICKER_CATEGORIES: StickerCategory[] = [
+  { id: 'general', label: 'Genel', stickers: STICKERS },
+  { id: 'nature', label: 'Doğa', stickers: [
+    { id: 'nat-01', emoji: '🌵' }, { id: 'nat-02', emoji: '🌴' }, { id: 'nat-03', emoji: '🍄' },
+    { id: 'nat-04', emoji: '🌾' }, { id: 'nat-05', emoji: '🌻' }, { id: 'nat-06', emoji: '🌹' },
+    { id: 'nat-07', emoji: '🍁' }, { id: 'nat-08', emoji: '🌊' }, { id: 'nat-09', emoji: '🌋' },
+    { id: 'nat-10', emoji: '🦁' }, { id: 'nat-11', emoji: '🐬' }, { id: 'nat-12', emoji: '🦋' },
+  ]},
+  { id: 'food', label: 'Yiyecek', stickers: [
+    { id: 'food-01', emoji: '🍕' }, { id: 'food-02', emoji: '🍦' }, { id: 'food-03', emoji: '🧁' },
+    { id: 'food-04', emoji: '🍩' }, { id: 'food-05', emoji: '🍣' }, { id: 'food-06', emoji: '🍔' },
+    { id: 'food-07', emoji: '🥑' }, { id: 'food-08', emoji: '🍓' }, { id: 'food-09', emoji: '🧃' },
+    { id: 'food-10', emoji: '☕' }, { id: 'food-11', emoji: '🍰' }, { id: 'food-12', emoji: '🌮' },
+  ]},
+  { id: 'mood', label: 'Duygu', stickers: [
+    { id: 'mood-01', emoji: '😎' }, { id: 'mood-02', emoji: '🥹' }, { id: 'mood-03', emoji: '🫶' },
+    { id: 'mood-04', emoji: '🥳' }, { id: 'mood-05', emoji: '😍' }, { id: 'mood-06', emoji: '🤩' },
+    { id: 'mood-07', emoji: '🫠' }, { id: 'mood-08', emoji: '😴' }, { id: 'mood-09', emoji: '🤯' },
+    { id: 'mood-10', emoji: '🫡' }, { id: 'mood-11', emoji: '🤭' }, { id: 'mood-12', emoji: '🥰' },
+  ]},
+];

@@ -24,6 +24,8 @@ export default function CarouselStudioPreview() {
   const imageData = params.imageData as string;
   const slides = parseInt(params.slides as string) || 3;
   const ratio = (params.ratio as string) || 'portrait';
+  const projectId = (params.projectId as string) || '';
+  const canvasData = (params.canvasData as string) || '';
 
   const dims = RATIOS[ratio as keyof typeof RATIOS] || RATIOS.portrait;
 
@@ -34,9 +36,11 @@ export default function CarouselStudioPreview() {
         imageData,
         slides: slides.toString(),
         ratio,
+        projectId,
+        canvasData,
       },
     });
-  }, [router, imageData, slides, ratio]);
+  }, [router, imageData, slides, ratio, projectId, canvasData]);
 
   const goBack = useCallback(() => {
     router.back();
