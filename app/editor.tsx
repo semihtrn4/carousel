@@ -73,18 +73,19 @@ export default function EditorScreen() {
     return `<!DOCTYPE html>
 <html>
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { background: #1a1a1a; display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow: hidden; }
-#container { position: relative; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
-.grid { position: absolute; top: 0; width: 2px; height: 100%; background: repeating-linear-gradient(to bottom, rgba(255,255,255,0.4) 0px, rgba(255,255,255,0.4) 8px, transparent 8px, transparent 16px); pointer-events: none; }
+body { background: #1a1a1a; overflow: hidden; width: 100vw; height: 100vh; }
+#wrapper { width: 100vw; height: 100vh; overflow: hidden; position: relative; display: flex; align-items: center; justify-content: flex-start; }
+#container { position: absolute; top: 0; left: 0; transform-origin: top left; }
+.grid { position: absolute; top: 0; width: 3px; height: 100%; background: repeating-linear-gradient(to bottom, rgba(255,255,255,0.8) 0px, rgba(255,255,255,0.8) 12px, transparent 12px, transparent 24px); pointer-events: none; z-index: 10; }
 canvas { display: block; }
 </style>
 </head>
 <body>
-<div id="container"><canvas id="c"></canvas></div>
+<div id="wrapper"><div id="container"><canvas id="c"></canvas></div></div>
 <script>
 const c = new fabric.Canvas('c', { width: ${w}, height: ${h}, backgroundColor: '${selColor}', preserveObjectStacking: true });
 const cont = document.getElementById('container');
@@ -93,9 +94,16 @@ const MOBILE_CONTROLS = { cornerColor: '#fff', cornerStrokeColor: '#333', border
 let undoStack = [], redoStack = [];
 function save() { undoStack.push(JSON.stringify(c)); redoStack = []; if (undoStack.length > 20) undoStack.shift(); }
 c.on('object:added', save); c.on('object:modified', save); c.on('object:removed', save);
-window.addImg = (src, targetLeft) => { fabric.Image.fromURL(src, (img) => { const scale = Math.min(800 / img.width, 600 / img.height); img.set({ left: targetLeft || (${w / 2}), top: ${h / 2} - (img.height * scale / 2), scaleX: scale, scaleY: scale, ...MOBILE_CONTROLS }); c.add(img); c.setActiveObject(img); c.renderAll(); }); };
-window.addTxt = (txt, opts) => { const t = new fabric.Text(txt, { left: opts.left || ${w / 2}, top: ${h / 2}, fontFamily: opts.fontFamily || 'Arial', fontSize: opts.fontSize || 48, fill: opts.color || '#000', textAlign: 'center', originX: 'center', originY: 'center', ...MOBILE_CONTROLS }); c.add(t); c.setActiveObject(t); c.renderAll(); };
-window.addSticker = (emoji, left) => { const t = new fabric.Text(emoji, { left: left || ${w / 2}, top: ${h / 2}, fontSize: 100, originX: 'center', originY: 'center', ...MOBILE_CONTROLS }); c.add(t); c.setActiveObject(t); c.renderAll(); };
+const scaleToFit = window.innerWidth / ${w};
+let canvasScale = scaleToFit;
+c.setZoom(scaleToFit);
+c.setWidth(window.innerWidth);
+c.setHeight(${h} * scaleToFit);
+cont.style.transform = '';
+function getVisibleCenterY() { return (c.getHeight() / 2) / c.getZoom(); }
+window.addImg = (src, targetLeft) => { fabric.Image.fromURL(src, (img) => { const scale = Math.min(${dims.width} / img.width, ${h} / img.height * 0.5); img.set({ left: targetLeft || (${w / 2}), top: getVisibleCenterY(), scaleX: scale, scaleY: scale, ...MOBILE_CONTROLS }); c.add(img); c.setActiveObject(img); c.renderAll(); }); };
+window.addTxt = (txt, opts) => { const t = new fabric.Text(txt, { left: opts.left || ${w / 2}, top: getVisibleCenterY(), fontFamily: opts.fontFamily || 'Arial', fontSize: opts.fontSize || 48, fill: opts.color || '#000', textAlign: 'center', originX: 'center', originY: 'center', ...MOBILE_CONTROLS }); c.add(t); c.setActiveObject(t); c.renderAll(); };
+window.addSticker = (emoji, left) => { const t = new fabric.Text(emoji, { left: left || ${w / 2}, top: getVisibleCenterY(), fontSize: 100, originX: 'center', originY: 'center', ...MOBILE_CONTROLS }); c.add(t); c.setActiveObject(t); c.renderAll(); };
 window.setBg = (color) => { c.setBackgroundColor(color, c.renderAll.bind(c)); };
 window.undo = () => { if (undoStack.length > 1) { redoStack.push(undoStack.pop()); const s = undoStack[undoStack.length - 1]; c.loadFromJSON(s, c.renderAll.bind(c)); } };
 window.redo = () => { if (redoStack.length > 0) { const s = redoStack.pop(); undoStack.push(s); c.loadFromJSON(s, c.renderAll.bind(c)); } };
@@ -130,6 +138,13 @@ document.addEventListener('touchmove', (e) => {
       obj.set({ scaleX: newScaleX, scaleY: newScaleY });
       obj.setCoords();
       c.renderAll();
+    } else if (lastPinchDist > 0) {
+      const ratio = dist / lastPinchDist;
+      const newZoom = Math.max(scaleToFit, Math.min(scaleToFit * 5, c.getZoom() * ratio));
+      c.setZoom(newZoom);
+      c.setWidth(window.innerWidth);
+      c.setHeight(${h} * newZoom);
+      canvasScale = newZoom;
     }
     lastPinchDist = dist;
   } else if (!isPinching) {

@@ -41,12 +41,18 @@ export default function CarouselStudioExport() {
 
       const assets: MediaLibrary.Asset[] = [];
 
+      // Gerçek canvas PNG boyutunu al
+      const sizeResult = await ImageManipulator.manipulateAsync(imageData, [], {});
+      const imageWidth = sizeResult.width;
+      const imageHeight = sizeResult.height;
+      const cropW = Math.floor(imageWidth / slides);
+
       for (let i = 0; i < slides; i++) {
         const cropConfig = {
-          originX: i * dims.width,
+          originX: i * cropW,
           originY: 0,
-          width: dims.width,
-          height: dims.height,
+          width: cropW,
+          height: imageHeight,
         };
 
         const manipResult = await ImageManipulator.manipulateAsync(
