@@ -35,22 +35,27 @@ export default function CarouselStudioExport() {
   }, []);
 
   const [imageData, setImageData] = useState<string>((params.imageData as string) || '');
+  const [canvasData, setCanvasData] = useState<string | undefined>(undefined);
   const slides = parseInt(params.slides as string) || 3;
   const ratio = (params.ratio as string) || 'portrait';
-  const canvasData = params.canvasData as string | undefined;
   const projectId = params.projectId as string | undefined;
-  // isPreview=1 ise imageData düşük çözünürlüklü — sadece önizleme için
   const isPreview = params.isPreview === '1';
 
-  // imageDataKey varsa AsyncStorage'dan oku (büyük base64 URL param yerine)
+  // imageDataKey varsa AsyncStorage'dan oku
   useEffect(() => {
     const key = params.imageDataKey as string | undefined;
     if (key) {
-      AsyncStorage.getItem(key).then(val => {
-        if (val) setImageData(val);
-      });
+      AsyncStorage.getItem(key).then(val => { if (val) setImageData(val); });
     }
   }, [params.imageDataKey]);
+
+  // canvasDataKey varsa AsyncStorage'dan oku
+  useEffect(() => {
+    const key = params.canvasDataKey as string | undefined;
+    if (key) {
+      AsyncStorage.getItem(key).then(val => { if (val) setCanvasData(val); });
+    }
+  }, [params.canvasDataKey]);
 
   const dims = RATIOS[ratio as keyof typeof RATIOS] || RATIOS.portrait;
 

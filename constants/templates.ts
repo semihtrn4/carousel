@@ -440,3 +440,128 @@ export const STICKER_CATEGORIES: StickerCategory[] = [
     { id: 'mood-10', emoji: '🫡' }, { id: 'mood-11', emoji: '🤭' }, { id: 'mood-12', emoji: '🥰' },
   ]},
 ];
+
+export type BgPattern = { id: string; name: string; preview: string; svg: string };
+
+export const BG_PATTERNS: BgPattern[] = [
+  {
+    id: 'dots-white',
+    name: 'Dots',
+    preview: '#1a1a2e',
+    svg: `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><rect width="40" height="40" fill="#1a1a2e"/><circle cx="20" cy="20" r="2.5" fill="rgba(255,255,255,0.35)"/></svg>`,
+  },
+  {
+    id: 'grid-dark',
+    name: 'Grid',
+    preview: '#0f0f0f',
+    svg: `<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60"><rect width="60" height="60" fill="#0f0f0f"/><path d="M60 0H0v60" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1"/></svg>`,
+  },
+  {
+    id: 'diagonal-dark',
+    name: 'Diagonal',
+    preview: '#111111',
+    svg: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><rect width="20" height="20" fill="#111"/><line x1="0" y1="20" x2="20" y2="0" stroke="rgba(255,255,255,0.1)" stroke-width="1.5"/></svg>`,
+  },
+  {
+    id: 'crosshatch',
+    name: 'Crosshatch',
+    preview: '#0d0d0d',
+    svg: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><rect width="20" height="20" fill="#0d0d0d"/><line x1="0" y1="20" x2="20" y2="0" stroke="rgba(255,255,255,0.07)" stroke-width="1"/><line x1="0" y1="0" x2="20" y2="20" stroke="rgba(255,255,255,0.07)" stroke-width="1"/></svg>`,
+  },
+  {
+    id: 'hexagon',
+    name: 'Hex',
+    preview: '#12121f',
+    svg: `<svg xmlns="http://www.w3.org/2000/svg" width="56" height="48"><rect width="56" height="48" fill="#12121f"/><polygon points="28,2 52,14 52,34 28,46 4,34 4,14" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1"/></svg>`,
+  },
+  {
+    id: 'waves',
+    name: 'Waves',
+    preview: '#0a0a1a',
+    svg: `<svg xmlns="http://www.w3.org/2000/svg" width="80" height="20"><rect width="80" height="20" fill="#0a0a1a"/><path d="M0 10 Q10 0 20 10 Q30 20 40 10 Q50 0 60 10 Q70 20 80 10" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="1.5"/></svg>`,
+  },
+  {
+    id: 'gradient-purple',
+    name: 'Purple',
+    preview: '#1a0533',
+    svg: `<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#1a0533"/><stop offset="100%" stop-color="#4a0080"/></linearGradient></defs><rect width="1080" height="1350" fill="url(#g)"/></svg>`,
+  },
+  {
+    id: 'gradient-ocean',
+    name: 'Ocean',
+    preview: '#001a33',
+    svg: `<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#001a33"/><stop offset="100%" stop-color="#0066cc"/></linearGradient></defs><rect width="1080" height="1350" fill="url(#g)"/></svg>`,
+  },
+  {
+    id: 'gradient-sunset',
+    name: 'Sunset',
+    preview: '#1a0010',
+    svg: `<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#1a0010"/><stop offset="50%" stop-color="#cc0044"/><stop offset="100%" stop-color="#ff6600"/></linearGradient></defs><rect width="1080" height="1350" fill="url(#g)"/></svg>`,
+  },
+  {
+    id: 'gradient-forest',
+    name: 'Forest',
+    preview: '#001a0a',
+    svg: `<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#001a0a"/><stop offset="100%" stop-color="#006633"/></linearGradient></defs><rect width="1080" height="1350" fill="url(#g)"/></svg>`,
+  },
+  {
+    id: 'gradient-rose',
+    name: 'Rose',
+    preview: '#1a0010',
+    svg: `<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350"><defs><linearGradient id="g" x1="0%" y1="100%" x2="100%" y2="0%"><stop offset="0%" stop-color="#1a0010"/><stop offset="100%" stop-color="#cc3366"/></linearGradient></defs><rect width="1080" height="1350" fill="url(#g)"/></svg>`,
+  },
+  {
+    id: 'noise-dark',
+    name: 'Noise',
+    preview: '#1c1c1c',
+    svg: `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/></filter><rect width="200" height="200" fill="#1c1c1c"/><rect width="200" height="200" filter="url(#n)" opacity="0.08"/></svg>`,
+  },
+  {
+    id: 'marble-dark',
+    name: 'Marble',
+    preview: '#1a1a1a',
+    svg: `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400"><filter id="m"><feTurbulence type="turbulence" baseFrequency="0.015" numOctaves="4" seed="2" stitchTiles="stitch"/><feDisplacementMap in="SourceGraphic" scale="60"/></filter><rect width="400" height="400" fill="#1a1a1a"/><rect width="400" height="400" fill="rgba(255,255,255,0.06)" filter="url(#m)"/></svg>`,
+  },
+  {
+    id: 'dots-color',
+    name: 'Neon Dots',
+    preview: '#0d0d1a',
+    svg: `<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60"><rect width="60" height="60" fill="#0d0d1a"/><circle cx="30" cy="30" r="2" fill="#06FFB4" opacity="0.4"/><circle cx="0" cy="0" r="2" fill="#8338EC" opacity="0.3"/><circle cx="60" cy="0" r="2" fill="#FF006E" opacity="0.3"/><circle cx="0" cy="60" r="2" fill="#3A86FF" opacity="0.3"/><circle cx="60" cy="60" r="2" fill="#06FFB4" opacity="0.3"/></svg>`,
+  },
+  {
+    id: 'grid-neon',
+    name: 'Neon Grid',
+    preview: '#050510',
+    svg: `<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80"><rect width="80" height="80" fill="#050510"/><path d="M80 0H0v80" fill="none" stroke="#3A86FF" stroke-width="0.5" opacity="0.3"/><circle cx="0" cy="0" r="1.5" fill="#06FFB4" opacity="0.5"/><circle cx="80" cy="0" r="1.5" fill="#06FFB4" opacity="0.5"/><circle cx="0" cy="80" r="1.5" fill="#06FFB4" opacity="0.5"/><circle cx="80" cy="80" r="1.5" fill="#06FFB4" opacity="0.5"/></svg>`,
+  },
+  {
+    id: 'stripes-diagonal',
+    name: 'Stripes',
+    preview: '#111',
+    svg: `<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30"><rect width="30" height="30" fill="#111"/><line x1="0" y1="30" x2="30" y2="0" stroke="rgba(255,255,255,0.06)" stroke-width="6"/></svg>`,
+  },
+  {
+    id: 'gradient-midnight',
+    name: 'Midnight',
+    preview: '#000010',
+    svg: `<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350"><defs><radialGradient id="g" cx="50%" cy="30%" r="70%"><stop offset="0%" stop-color="#1a1a4e"/><stop offset="100%" stop-color="#000010"/></radialGradient></defs><rect width="1080" height="1350" fill="url(#g)"/></svg>`,
+  },
+  {
+    id: 'gradient-aurora',
+    name: 'Aurora',
+    preview: '#001a1a',
+    svg: `<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#001a1a"/><stop offset="40%" stop-color="#004d40"/><stop offset="70%" stop-color="#1a0033"/><stop offset="100%" stop-color="#000d1a"/></linearGradient></defs><rect width="1080" height="1350" fill="url(#g)"/></svg>`,
+  },
+  {
+    id: 'checkerboard',
+    name: 'Check',
+    preview: '#111',
+    svg: `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><rect width="40" height="40" fill="#111"/><rect width="20" height="20" fill="rgba(255,255,255,0.05)"/><rect x="20" y="20" width="20" height="20" fill="rgba(255,255,255,0.05)"/></svg>`,
+  },
+  {
+    id: 'gradient-gold',
+    name: 'Gold',
+    preview: '#1a1000',
+    svg: `<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#1a1000"/><stop offset="50%" stop-color="#4a3000"/><stop offset="100%" stop-color="#cc9900"/></linearGradient></defs><rect width="1080" height="1350" fill="url(#g)"/></svg>`,
+  },
+];

@@ -61,7 +61,6 @@ export default function CarouselStudioPreview() {
   const slides = parseInt(params.slides as string) || 3;
   const ratio = (params.ratio as string) || 'portrait';
   const projectId = (params.projectId as string) || '';
-  const canvasData = (params.canvasData as string) || '';
 
   const dims = RATIOS[ratio as keyof typeof RATIOS] || RATIOS.portrait;
 
@@ -70,32 +69,29 @@ export default function CarouselStudioPreview() {
     setNavigating(true);
     setNavSecs(0);
 
-    // Saniye sayacı başlat
     navTimerRef.current = setInterval(() => {
       setNavSecs(s => s + 1);
     }, 1000);
 
     try {
-      // imageData büyük base64 olduğu için AsyncStorage üzerinden geçir
       await AsyncStorage.setItem('__preview_imageData', imageData);
     } catch (_) {}
 
-    // Kısa bir tick — UI'ın overlay'i render etmesine izin ver
     setTimeout(() => {
       if (navTimerRef.current) { clearInterval(navTimerRef.current); navTimerRef.current = null; }
       router.push({
         pathname: '/export',
         params: {
           imageDataKey: '__preview_imageData',
+          canvasDataKey: '__preview_canvasData',
           slides: slides.toString(),
           ratio,
           projectId,
-          canvasData,
         },
       });
       setNavigating(false);
     }, 80);
-  }, [router, imageData, slides, ratio, projectId, canvasData, navigating]);
+  }, [router, imageData, slides, ratio, projectId, navigating]);
 
   const goBack = useCallback(() => {
     router.back();

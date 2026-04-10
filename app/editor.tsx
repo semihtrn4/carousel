@@ -9,7 +9,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ArrowLeft, Undo, Redo, Image as ImageIcon, Type, Sticker, Palette, Eye, X, Check, Layers, LayoutGrid, Shapes } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
-import { TEMPLATES, STICKERS, FONTS, CUTOUT_LETTERS, FRAMES, STICKER_CATEGORIES } from '@/constants/templates';
+import { TEMPLATES, STICKERS, FONTS, CUTOUT_LETTERS, FRAMES, STICKER_CATEGORIES, BG_PATTERNS } from '@/constants/templates';
 import { ICON_CATEGORIES } from '@/constants/icons';
 
 const TABS = [
@@ -96,7 +96,7 @@ export default function EditorScreen() {
                 // Canvas yüklendikten sonra JSON'u restore et
                 const json = project.canvasData;
                 setTimeout(() => {
-                  webRef.current?.injectJavaScript(`c.loadFromJSON(${JSON.stringify(json)}, c.renderAll.bind(c)); true;`);
+                  webRef.current?.injectJavaScript(`restoreCanvasState(${JSON.stringify(json)}); true;`);
                 }, 1500);
               }
             }
@@ -178,7 +178,7 @@ for (let i = 1; i < ${slides}; i++) {
 }
 const MOBILE_CONTROLS = { cornerColor: '#fff', cornerStrokeColor: '#333', borderColor: '#06FFB4', cornerSize: 20, transparentCorners: false, hasRotatingPoint: false };
 let undoStack = [], redoStack = [];
-function save() { undoStack.push(JSON.stringify(c)); redoStack = []; if (undoStack.length > 20) undoStack.shift(); }
+function save() { undoStack.push(getCanvasState()); redoStack = []; if (undoStack.length > 20) undoStack.shift(); }
 window.hideGrid = () => { ghostLines.forEach(l => { l.set({ visible: false }); }); c.renderAll(); };
 window.showGrid = () => { ghostLines.forEach(l => { l.set({ visible: true }); }); c.renderAll(); };
 function sendLayersUpdate() {
@@ -194,12 +194,54 @@ c.on('object:added', () => { save(); sendLayersUpdate(); });
 c.on('object:removed', () => { save(); sendLayersUpdate(); });
 c.on('object:modified', () => { save(); sendLayersUpdate(); });
 function getVisibleCenterY() { return (c.getHeight() / 2) / c.getZoom(); }
-window.addImg = (src, targetLeft) => { fabric.Image.fromURL(src, (img) => { const scale = Math.min(${dims.width} / img.width, ${h} / img.height); img.set({ id: Date.now().toString(), left: targetLeft || (${w / 2}), top: getVisibleCenterY(), scaleX: scale, scaleY: scale, ...MOBILE_CONTROLS }); c.add(img); c.setActiveObject(img); c.renderAll(); }); };
-window.addTxt = (txt, opts) => { const t = new fabric.Text(txt, { id: Date.now().toString(), left: opts.left || ${w / 2}, top: getVisibleCenterY(), fontFamily: opts.fontFamily || 'Arial', fontSize: opts.fontSize || 48, fill: opts.color || '#fff', textAlign: 'center', originX: 'center', originY: 'center', ...MOBILE_CONTROLS }); c.add(t); c.setActiveObject(t); c.renderAll(); };
-window.addSticker = (emoji, left) => { const t = new fabric.Text(emoji, { id: Date.now().toString(), left: left || ${w / 2}, top: getVisibleCenterY(), fontSize: 100, originX: 'center', originY: 'center', ...MOBILE_CONTROLS }); c.add(t); c.setActiveObject(t); c.renderAll(); };
+window.addImg = (src, targetLeft) => { fabric.Image.fromURL(src, (img) => { const scale = Math.min(${dims.width} / img.width, ${h} / img.height); img.set({ id: Date.now().toString(), left: targetLeft || (${w / 2}), top: getVisibleCenterY(), scaleX: scale, scaleY: scale, ...MOBILE_CONTROLS }); c.add(img); ghostLines.forEach(l => c.bringToFront(l)); c.setActiveObject(img); c.renderAll(); }); };
+window.addTxt = (txt, opts) => { const t = new fabric.Text(txt, { id: Date.now().toString(), left: opts.left || ${w / 2}, top: getVisibleCenterY(), fontFamily: opts.fontFamily || 'Arial', fontSize: opts.fontSize || 48, fill: opts.color || '#fff', textAlign: 'center', originX: 'center', originY: 'center', ...MOBILE_CONTROLS }); c.add(t); ghostLines.forEach(l => c.bringToFront(l)); c.setActiveObject(t); c.renderAll(); };
+window.addSticker = (emoji, left) => { const t = new fabric.Text(emoji, { id: Date.now().toString(), left: left || ${w / 2}, top: getVisibleCenterY(), fontSize: 100, originX: 'center', originY: 'center', ...MOBILE_CONTROLS }); c.add(t); ghostLines.forEach(l => c.bringToFront(l)); c.setActiveObject(t); c.renderAll(); };
 window.setBg = (color) => { c.setBackgroundColor(color, () => { const lineColor = getContrastLineColor(color); ghostLines.forEach(l => l.set({ stroke: lineColor })); c.renderAll(); }); };
-window.undo = () => { if (undoStack.length > 1) { redoStack.push(undoStack.pop()); const s = undoStack[undoStack.length - 1]; c.loadFromJSON(s, c.renderAll.bind(c)); } };
-window.redo = () => { if (redoStack.length > 0) { const s = redoStack.pop(); undoStack.push(s); c.loadFromJSON(s, c.renderAll.bind(c)); } };
+window.setBgPattern = (svgStr) => {
+  const img = new Image();
+  const blob = new Blob([svgStr], { type: 'image/svg+xml' });
+  const url = URL.createObjectURL(blob);
+  img.onload = () => {
+    const pat = new fabric.Pattern({ source: img, repeat: 'repeat' });
+    c.setBackgroundColor(pat, () => { ghostLines.forEach(l => l.set({ stroke: 'rgba(255,255,255,0.5)' })); c.renderAll(); });
+    URL.revokeObjectURL(url);
+  };
+  img.src = url;
+};
+
+// Sadece user objelerini serialize et (ghost line'lar ve backgroundColor hariç)
+function getCanvasState() {
+  const objs = c.getObjects().filter(o => !o.id || !o.id.startsWith('__ghost'));
+  return JSON.stringify({ objects: objs.map(o => o.toObject(['id'])), background: c.backgroundColor });
+}
+function restoreCanvasState(stateStr) {
+  const state = JSON.parse(stateStr);
+  // Önce ghost line'lar dışındaki tüm objeleri kaldır
+  c.getObjects().filter(o => !o.id || !o.id.startsWith('__ghost')).forEach(o => c.remove(o));
+  // Background'ı restore et
+  if (state.background) c.setBackgroundColor(state.background, () => {});
+  // Objeleri restore et
+  if (state.objects && state.objects.length > 0) {
+    fabric.util.enlivenObjects(state.objects, (enlivened) => {
+      enlivened.forEach(obj => {
+        obj.set({ ...MOBILE_CONTROLS });
+        c.add(obj);
+      });
+      // Ghost line'ları her zaman en üste taşı
+      ghostLines.forEach(l => c.bringToFront(l));
+      c.renderAll();
+      sendLayersUpdate();
+    });
+  } else {
+    ghostLines.forEach(l => c.bringToFront(l));
+    c.renderAll();
+    sendLayersUpdate();
+  }
+}
+
+window.undo = () => { if (undoStack.length > 1) { redoStack.push(undoStack.pop()); restoreCanvasState(undoStack[undoStack.length - 1]); } };
+window.redo = () => { if (redoStack.length > 0) { const s = redoStack.pop(); undoStack.push(s); restoreCanvasState(s); } };
 window.exportCanvas = () => { window.hideGrid(); setTimeout(() => { const realMultiplier = 1 / c.getZoom(); const data = c.toDataURL({ format: 'jpeg', quality: 0.95, multiplier: realMultiplier }); const json = JSON.stringify(c.toJSON(['id'])); window.showGrid(); window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'export', data, canvasJson: json })); }, 50); };
 window.exportPreview = () => { window.hideGrid(); setTimeout(() => { const realMultiplier = 1 / c.getZoom(); const data = c.toDataURL({ format: 'jpeg', quality: 0.95, multiplier: realMultiplier }); const json = JSON.stringify(c.toJSON(['id'])); window.showGrid(); window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'export', data, canvasJson: json, isPreview: false })); }, 50); };
 
@@ -258,17 +300,18 @@ window.removeBg = (dataUri, targetLeft) => {
 };
 window.deleteSel = () => { const a = c.getActiveObject(); if (a) { c.remove(a); c.discardActiveObject(); c.renderAll(); } };
 window.selectObject = (id) => { const obj = c.getObjects().find(o => o.id === id); if (!obj) return; c.setActiveObject(obj); c.renderAll(); };
-window.bringForward = (id) => { const obj = c.getObjects().find(o => o.id === id); if (!obj) return; c.bringForward(obj); c.renderAll(); sendLayersUpdate(); };
-window.sendBackward = (id) => { const obj = c.getObjects().find(o => o.id === id); if (!obj) return; c.sendBackwards(obj); c.renderAll(); sendLayersUpdate(); };
+window.bringForward = (id) => { const obj = c.getObjects().find(o => o.id === id); if (!obj) return; c.bringForward(obj); ghostLines.forEach(l => c.bringToFront(l)); c.renderAll(); sendLayersUpdate(); };
+window.sendBackward = (id) => { const obj = c.getObjects().find(o => o.id === id); if (!obj) return; c.sendBackwards(obj); ghostLines.forEach(l => c.bringToFront(l)); c.renderAll(); sendLayersUpdate(); };
 window.toggleVisibility = (id) => { const obj = c.getObjects().find(o => o.id === id); if (!obj) return; obj.set({ visible: !obj.visible }); c.renderAll(); sendLayersUpdate(); };
-window.duplicateSel = () => { const a = c.getActiveObject(); if (!a) return; a.clone(cloned => { cloned.set({ left: a.left + 20, top: a.top + 20, id: Date.now().toString() }); c.add(cloned); c.setActiveObject(cloned); c.renderAll(); }); };
+window.duplicateSel = () => { const a = c.getActiveObject(); if (!a) return; a.clone(cloned => { cloned.set({ left: a.left + 20, top: a.top + 20, id: Date.now().toString() }); c.add(cloned); ghostLines.forEach(l => c.bringToFront(l)); c.setActiveObject(cloned); c.renderAll(); }); };
+window.moveObj = (dx, dy) => { const a = c.getActiveObject(); if (!a) return; a.set({ left: (a.left || 0) + dx, top: (a.top || 0) + dy }); a.setCoords(); c.renderAll(); };
 window.setOpacity = (v) => { const a = c.getActiveObject(); if (!a) return; a.set({ opacity: v }); c.renderAll(); };
 window.setBlur = (v) => { const a = c.getActiveObject(); if (!a) return; a.set({ shadow: v > 0 ? new fabric.Shadow({ blur: v, color: 'rgba(0,0,0,0.5)' }) : null }); c.renderAll(); };
 window.setStroke = (color, width) => { const a = c.getActiveObject(); if (!a) return; a.set({ stroke: color, strokeWidth: width }); c.renderAll(); };
 window.setFill = (color) => { const a = c.getActiveObject(); if (!a) return; a.set({ fill: color }); c.renderAll(); };
 window.moveToSlide = (slideIndex, slideWidth) => { const a = c.getActiveObject(); if (!a) return; a.set({ left: (slideIndex - 1) * slideWidth + slideWidth / 2 }); a.setCoords(); c.renderAll(); };
-window.addFrame = (svgStr, w, h) => { fabric.loadSVGFromString(svgStr, (objects, options) => { const svg = fabric.util.groupSVGElements(objects, options); svg.set({ left: 0, top: 0, scaleX: w / svg.width, scaleY: h / svg.height, id: Date.now().toString(), selectable: true, ...MOBILE_CONTROLS }); c.add(svg); c.renderAll(); }); };
-window.addFrameImg = (src, w, h) => { fabric.Image.fromURL(src, (img) => { img.set({ left: 0, top: 0, scaleX: w / img.width, scaleY: h / img.height, id: Date.now().toString(), selectable: true, ...MOBILE_CONTROLS }); c.add(img); c.renderAll(); }); };
+window.addFrame = (svgStr, w, h) => { fabric.loadSVGFromString(svgStr, (objects, options) => { const svg = fabric.util.groupSVGElements(objects, options); svg.set({ left: 0, top: 0, scaleX: w / svg.width, scaleY: h / svg.height, id: Date.now().toString(), selectable: true, ...MOBILE_CONTROLS }); c.add(svg); ghostLines.forEach(l => c.bringToFront(l)); c.renderAll(); }); };
+window.addFrameImg = (src, w, h) => { fabric.Image.fromURL(src, (img) => { img.set({ left: 0, top: 0, scaleX: w / img.width, scaleY: h / img.height, id: Date.now().toString(), selectable: true, ...MOBILE_CONTROLS }); c.add(img); ghostLines.forEach(l => c.bringToFront(l)); c.renderAll(); }); };
 c.on('selection:created', (e) => {
   const obj = e.selected[0];
   if (!obj) return;
@@ -492,19 +535,28 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
     if (exportTimerRef.current) { clearInterval(exportTimerRef.current); exportTimerRef.current = null; }
     setExporting(false);
     webRef.current?.injectJavaScript(`window.showGrid(); true;`);
-    router.push({
-      pathname: '/preview',
-      params: {
-        imageData: data,
-        slides: slides.toString(),
-        ratio,
-        width: canvasW.toString(),
-        height: (RATIOS[ratio].height).toString(),
-        projectId: (params.projectId as string) || '',
-        canvasData: canvasJson || '',
-        isPreview: isPreview ? '1' : '0',
-      }
-    });
+
+    // canvasData büyük olabilir — AsyncStorage üzerinden geçir
+    const storeAndNavigate = async () => {
+      try {
+        if (canvasJson) {
+          await AsyncStorage.setItem('__preview_canvasData', canvasJson);
+        }
+      } catch (_) {}
+      router.push({
+        pathname: '/preview',
+        params: {
+          imageData: data,
+          slides: slides.toString(),
+          ratio,
+          width: canvasW.toString(),
+          height: (RATIOS[ratio].height).toString(),
+          projectId: (params.projectId as string) || '',
+          isPreview: isPreview ? '1' : '0',
+        }
+      });
+    };
+    storeAndNavigate();
   };
 
   const goPreview = () => {
@@ -650,11 +702,31 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
       );
       case 'background': return (
         <View style={eStyles.panel}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <Text style={eStyles.label}>Colors</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
             <View style={eStyles.colorRow}>
               {COLORS_LIST.map((c) => (
                 <TouchableOpacity key={c} style={[eStyles.colorBtn, { backgroundColor: c }, selColor === c && eStyles.colorActive]} onPress={() => setBg(c)}>
                   {selColor === c && <Check size={16} color={c === '#FFFFFF' ? '#000' : '#fff'} />}
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+          <Text style={eStyles.label}>Patterns</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 4 }}>
+              {BG_PATTERNS.map((p) => (
+                <TouchableOpacity
+                  key={p.id}
+                  style={[eStyles.patternBtn, selColor === p.id && eStyles.colorActive]}
+                  onPress={() => {
+                    setSelColor(p.id);
+                    webRef.current?.injectJavaScript(`window.setBgPattern(${JSON.stringify(p.svg)}); true;`);
+                  }}
+                >
+                  <View style={[eStyles.patternPreview, { backgroundColor: p.preview }]}>
+                    <Text style={eStyles.patternName}>{p.name}</Text>
+                  </View>
                 </TouchableOpacity>
               ))}
             </View>
@@ -741,6 +813,25 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
 
       {selectedObject && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={eStyles.objectToolbar} contentContainerStyle={{ gap: 4, paddingHorizontal: 12, paddingVertical: 8 }}>
+          {/* Ok tuşları — ince hareket */}
+          <View style={eStyles.arrowPad}>
+            <TouchableOpacity style={eStyles.arrowBtn} onPress={() => webRef.current?.injectJavaScript(`window.moveObj(0,-10); true;`)}>
+              <Text style={eStyles.arrowIcon}>▲</Text>
+            </TouchableOpacity>
+            <View style={eStyles.arrowMiddleRow}>
+              <TouchableOpacity style={eStyles.arrowBtn} onPress={() => webRef.current?.injectJavaScript(`window.moveObj(-10,0); true;`)}>
+                <Text style={eStyles.arrowIcon}>◀</Text>
+              </TouchableOpacity>
+              <View style={eStyles.arrowCenter} />
+              <TouchableOpacity style={eStyles.arrowBtn} onPress={() => webRef.current?.injectJavaScript(`window.moveObj(10,0); true;`)}>
+                <Text style={eStyles.arrowIcon}>▶</Text>
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity style={eStyles.arrowBtn} onPress={() => webRef.current?.injectJavaScript(`window.moveObj(0,10); true;`)}>
+              <Text style={eStyles.arrowIcon}>▼</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={eStyles.toolDivider} />
           <TouchableOpacity style={eStyles.toolBtn} onPress={() => webRef.current?.injectJavaScript(`window.deleteSel(); true;`)}>
             <Text style={eStyles.toolIcon}>🗑</Text>
             <Text style={eStyles.toolLabel}>Delete</Text>
@@ -955,13 +1046,22 @@ const eStyles = StyleSheet.create({
   elementTray: { backgroundColor: Colors.dark.background, borderTopWidth: 1, borderTopColor: Colors.dark.border, maxHeight: 60 },
   trayItem: { width: 44, height: 44, borderRadius: 8, backgroundColor: Colors.dark.surface, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: 'transparent' },
   trayItemActive: { borderColor: Colors.dark.accent },
-  objectToolbar: { backgroundColor: Colors.dark.surfaceElevated, borderTopWidth: 1, borderTopColor: Colors.dark.border, maxHeight: 80 },
+  objectToolbar: { backgroundColor: Colors.dark.surfaceElevated, borderTopWidth: 1, borderTopColor: Colors.dark.border, maxHeight: 90 },
   toolBtn: { alignItems: 'center', paddingHorizontal: 10, paddingVertical: 4, minWidth: 52 },
   toolIcon: { fontSize: 20 },
   toolLabel: { fontSize: 10, color: Colors.dark.textMuted, marginTop: 2 },
+  toolDivider: { width: 1, backgroundColor: Colors.dark.border, marginHorizontal: 4, alignSelf: 'stretch' },
+  arrowPad: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, paddingVertical: 2 },
+  arrowMiddleRow: { flexDirection: 'row', alignItems: 'center' },
+  arrowBtn: { width: 28, height: 28, borderRadius: 6, backgroundColor: Colors.dark.surface, justifyContent: 'center', alignItems: 'center', margin: 1 },
+  arrowIcon: { fontSize: 12, color: Colors.dark.text },
+  arrowCenter: { width: 28, height: 28 },
   toolColorBtn: { width: 32, height: 32, borderRadius: 16, marginTop: 6 },
   colorPreview: { width: 28, height: 28, borderRadius: 14, borderWidth: 1, borderColor: Colors.dark.border },
   colorPickerBtn: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: Colors.dark.border },
+  patternBtn: { borderRadius: 10, borderWidth: 2, borderColor: 'transparent', overflow: 'hidden' },
+  patternPreview: { width: 64, height: 64, borderRadius: 8, justifyContent: 'flex-end', padding: 4 },
+  patternName: { fontSize: 9, color: 'rgba(255,255,255,0.8)', fontWeight: '600', textAlign: 'center' },
   frameBtn: { paddingHorizontal: 16, paddingVertical: 10, backgroundColor: Colors.dark.surface, borderRadius: 8, borderWidth: 2, borderColor: Colors.dark.border, justifyContent: 'center', alignItems: 'center', minWidth: 110 },
   frameName: { fontSize: 12, color: Colors.dark.text, textAlign: 'center', fontWeight: '600', marginTop: 4 },
   frameRatio: { fontSize: 10, color: Colors.dark.textMuted, textAlign: 'center', marginTop: 2, textTransform: 'capitalize' },
