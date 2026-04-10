@@ -198,7 +198,7 @@ window.setBg = (color) => { c.setBackgroundColor(color, () => { const lineColor 
 window.undo = () => { if (undoStack.length > 1) { redoStack.push(undoStack.pop()); const s = undoStack[undoStack.length - 1]; c.loadFromJSON(s, c.renderAll.bind(c)); } };
 window.redo = () => { if (redoStack.length > 0) { const s = redoStack.pop(); undoStack.push(s); c.loadFromJSON(s, c.renderAll.bind(c)); } };
 window.exportCanvas = () => { window.hideGrid(); setTimeout(() => { const data = c.toDataURL({ format: 'jpeg', quality: 0.92, multiplier: 1 }); const json = JSON.stringify(c.toJSON(['id'])); window.showGrid(); window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'export', data, canvasJson: json })); }, 50); };
-window.exportPreview = () => { window.hideGrid(); setTimeout(() => { const data = c.toDataURL({ format: 'jpeg', quality: 0.75, multiplier: 1 }); const json = JSON.stringify(c.toJSON(['id'])); window.showGrid(); window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'export', data, canvasJson: json, isPreview: false })); }, 50); };
+window.exportPreview = () => { window.hideGrid(); setTimeout(() => { const data = c.toDataURL({ format: 'jpeg', quality: 0.92, multiplier: 1 }); const json = JSON.stringify(c.toJSON(['id'])); window.showGrid(); window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'export', data, canvasJson: json, isPreview: false })); }, 50); };
 window.deleteSel = () => { const a = c.getActiveObject(); if (a) { c.remove(a); c.discardActiveObject(); c.renderAll(); } };
 window.selectObject = (id) => { const obj = c.getObjects().find(o => o.id === id); if (!obj) return; c.setActiveObject(obj); c.renderAll(); };
 window.bringForward = (id) => { const obj = c.getObjects().find(o => o.id === id); if (!obj) return; c.bringForward(obj); c.renderAll(); sendLayersUpdate(); };
@@ -591,9 +591,12 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
           <TouchableOpacity style={eStyles.btn} onPress={() => webRef.current?.injectJavaScript(`window.deleteSel(); true;`)}>
             <X size={22} color={Colors.dark.text} />
           </TouchableOpacity>
-          <TouchableOpacity style={[eStyles.btn, eStyles.previewBtn]} onPress={goPreview}>
-            <Eye size={20} color={Colors.dark.background} />
-            <Text style={eStyles.previewText}>Preview</Text>
+          <TouchableOpacity style={[eStyles.btn, eStyles.previewBtn, exporting && eStyles.previewBtnDisabled]} onPress={goPreview} disabled={exporting}>
+            {exporting
+              ? <ActivityIndicator size="small" color={Colors.dark.background} />
+              : <Eye size={20} color={Colors.dark.background} />
+            }
+            <Text style={eStyles.previewText}>{exporting ? 'Hazırlanıyor...' : 'Preview'}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -764,6 +767,22 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
           </View>
         </View>
       </Modal>
+
+      {/* Preview Export Overlay */}
+      {exporting && (
+        <View style={eStyles.exportOverlay}>
+          <View style={eStyles.exportOverlayCard}>
+            <View style={eStyles.exportSpinnerWrap}>
+              <ActivityIndicator size="large" color={Colors.dark.accent} />
+              <View style={eStyles.exportSecsCircle}>
+                <Text style={eStyles.exportSecsText}>{exportSecs}s</Text>
+              </View>
+            </View>
+            <Text style={eStyles.exportOverlayTitle}>Önizleme Hazırlanıyor</Text>
+            <Text style={eStyles.exportOverlaySub}>Canvas render ediliyor, lütfen bekleyin...</Text>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -836,4 +855,12 @@ const eStyles = StyleSheet.create({
   catLabel: { fontSize: 12, color: Colors.dark.text, fontWeight: '500' },
   iconBtn: { paddingHorizontal: 10, paddingVertical: 8, backgroundColor: Colors.dark.surface, borderRadius: 8, borderWidth: 1, borderColor: Colors.dark.border, minWidth: 60, alignItems: 'center' },
   iconLabel: { fontSize: 10, color: Colors.dark.text, textAlign: 'center' },
+  previewBtnDisabled: { opacity: 0.6 },
+  exportOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', alignItems: 'center', zIndex: 999 },
+  exportOverlayCard: { backgroundColor: Colors.dark.surface, borderRadius: 24, padding: 36, alignItems: 'center', width: 260, gap: 16 },
+  exportSpinnerWrap: { width: 80, height: 80, justifyContent: 'center', alignItems: 'center' },
+  exportSecsCircle: { position: 'absolute', bottom: 0, right: 0, backgroundColor: Colors.dark.surfaceElevated, borderRadius: 12, paddingHorizontal: 6, paddingVertical: 2 },
+  exportSecsText: { fontSize: 12, fontWeight: '700', color: Colors.dark.accent },
+  exportOverlayTitle: { fontSize: 17, fontWeight: '700', color: Colors.dark.text, textAlign: 'center' },
+  exportOverlaySub: { fontSize: 13, color: Colors.dark.textMuted, textAlign: 'center', lineHeight: 18 },
 });

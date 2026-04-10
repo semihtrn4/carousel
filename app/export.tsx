@@ -34,13 +34,23 @@ export default function CarouselStudioExport() {
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, []);
 
-  const imageData = params.imageData as string;
+  const [imageData, setImageData] = useState<string>((params.imageData as string) || '');
   const slides = parseInt(params.slides as string) || 3;
   const ratio = (params.ratio as string) || 'portrait';
   const canvasData = params.canvasData as string | undefined;
   const projectId = params.projectId as string | undefined;
   // isPreview=1 ise imageData düşük çözünürlüklü — sadece önizleme için
   const isPreview = params.isPreview === '1';
+
+  // imageDataKey varsa AsyncStorage'dan oku (büyük base64 URL param yerine)
+  useEffect(() => {
+    const key = params.imageDataKey as string | undefined;
+    if (key) {
+      AsyncStorage.getItem(key).then(val => {
+        if (val) setImageData(val);
+      });
+    }
+  }, [params.imageDataKey]);
 
   const dims = RATIOS[ratio as keyof typeof RATIOS] || RATIOS.portrait;
 
@@ -75,11 +85,15 @@ export default function CarouselStudioExport() {
     }
   }, [projectId, slides, ratio, canvasData]);
 
+  // UI'ın render etmesine fırsat vermek için her adım arasında küçük bir tick
+  const tick = () => new Promise<void>(resolve => setTimeout(resolve, 30));
+
   const exportImages = useCallback(async (name: string) => {
     setExporting(true);
     setExportProgress(0);
     setExportStep('İzin alınıyor...');
     setShowNameModal(false);
+    await tick();
 
     try {
       const { status } = await MediaLibrary.requestPermissionsAsync();
@@ -89,17 +103,21 @@ export default function CarouselStudioExport() {
         return;
       }
 
-      setExportStep('Görsel hazırlanıyor...');
-      setExportProgress(10);
+      setExportStep('Görsel boyutları okunuyor...');
+      setExportProgress(8);
+      await tick();
 
-      const sizeResult = await ImageManipulator.manipulateAsync(imageData, [], {});
+      // Boyut okuma — ayrı manipülasyon yerine direkt crop'ta kullanacağız
+      const sizeResult = await ImageManipulator.manipulateAsync(imageData, [], { compress: 1 });
       const imageWidth = sizeResult.width;
       const imageHeight = sizeResult.height;
       const cropW = Math.floor(imageWidth / slides);
 
-      // Thumbnail oluştur (küçük, hızlı)
       setExportStep('Thumbnail oluşturuluyor...');
       setExportProgress(15);
+      await tick();
+
+      // Thumbnail — küçük, hızlı
       const thumbResult = await ImageManipulator.manipulateAsync(
         imageData,
         [{ crop: { originX: 0, originY: 0, width: cropW, height: imageHeight } }, { resize: { width: 300 } }],
@@ -107,27 +125,31 @@ export default function CarouselStudioExport() {
       );
       const thumbnail = `data:image/jpeg;base64,${thumbResult.base64}`;
 
-      // Önce projeyi kaydet (galeri izni olmasa bile proje kaydolsun)
       setExportStep('Proje kaydediliyor...');
       setExportProgress(20);
+      await tick();
       await saveProjectToApp(thumbnail, name);
 
-      // Slide'ları sıralı crop et → galeriye kaydet
+      // Her slide: crop → yüksek kalite → galeriye kaydet
       const assets: MediaLibrary.Asset[] = [];
       for (let i = 0; i < slides; i++) {
+        const stepProgress = 20 + Math.round(((i) / slides) * 75);
         setExportStep(`Slide ${i + 1} / ${slides} kaydediliyor...`);
-        setExportProgress(20 + Math.round(((i + 1) / slides) * 78));
+        setExportProgress(stepProgress);
+        await tick(); // UI'ın progress bar'ı güncellemesine izin ver
 
         const cropResult = await ImageManipulator.manipulateAsync(
           imageData,
           [{ crop: { originX: i * cropW, originY: 0, width: cropW, height: imageHeight } }],
-          { format: ImageManipulator.SaveFormat.JPEG, compress: 0.88 }
+          { format: ImageManipulator.SaveFormat.JPEG, compress: 0.95 } // yüksek kalite
         );
         const asset = await MediaLibrary.createAssetAsync(cropResult.uri);
         assets.push(asset);
       }
 
       setExportProgress(100);
+      setExportStep('Tamamlandı!');
+      await tick();
       setSavedCount(assets.length);
       setCompleted(true);
     } catch (error) {
@@ -212,12 +234,16 @@ export default function CarouselStudioExport() {
 
       {exporting ? (
         <View style={styles.exporting}>
-          <ActivityIndicator size="large" color={Colors.dark.accent} />
-          <Text style={styles.exportingText}>{exportStep}</Text>
-          <View style={styles.progressBar}>
+          <Text style={styles.exportingStep}>{exportStep}</Text>
+          <View style={styles.progressBarWrap}>
             <View style={[styles.progressFill, { width: `${exportProgress}%` as any }]} />
           </View>
-          <Text style={styles.progressLabel}>{exportProgress}%</Text>
+          <View style={styles.progressRow}>
+            <Text style={styles.progressLabel}>{exportProgress}%</Text>
+            <Text style={styles.progressSlideLabel}>
+              {exportProgress < 20 ? 'Hazırlanıyor...' : exportProgress === 100 ? '✓ Tamamlandı' : `Slide işleniyor`}
+            </Text>
+          </View>
         </View>
       ) : (
         <TouchableOpacity style={styles.exportBtn} onPress={() => setShowNameModal(true)}>
@@ -263,11 +289,15 @@ const styles = StyleSheet.create({
   info: { paddingHorizontal: 20, paddingBottom: 20, alignItems: 'center' },
   infoTitle: { fontSize: 18, fontWeight: '600', color: Colors.dark.text },
   infoSub: { fontSize: 14, color: Colors.dark.textMuted, marginTop: 4, textAlign: 'center' },
-  exporting: { padding: 32, alignItems: 'center' },
+  exporting: { paddingHorizontal: 24, paddingVertical: 28, alignItems: 'center' },
+  exportingStep: { fontSize: 15, fontWeight: '600', color: Colors.dark.text, marginBottom: 16, textAlign: 'center' },
   exportingText: { marginTop: 16, fontSize: 15, color: Colors.dark.textSecondary, textAlign: 'center' },
+  progressBarWrap: { width: '100%', height: 10, backgroundColor: Colors.dark.border, borderRadius: 5, overflow: 'hidden' },
   progressBar: { width: '80%', height: 6, backgroundColor: Colors.dark.border, borderRadius: 3, marginTop: 16, overflow: 'hidden' },
-  progressFill: { height: '100%', backgroundColor: Colors.dark.accent, borderRadius: 3 },
-  progressLabel: { marginTop: 8, fontSize: 13, color: Colors.dark.textMuted },
+  progressFill: { height: '100%', backgroundColor: Colors.dark.accent, borderRadius: 5 },
+  progressRow: { flexDirection: 'row', justifyContent: 'space-between', width: '100%', marginTop: 8 },
+  progressLabel: { fontSize: 13, fontWeight: '700', color: Colors.dark.accent },
+  progressSlideLabel: { fontSize: 13, color: Colors.dark.textMuted },
   exportBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.dark.accent, marginHorizontal: 20, marginBottom: 32, paddingVertical: 18, borderRadius: 16, gap: 12 },
   exportBtnText: { fontSize: 18, fontWeight: '600', color: Colors.dark.background },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'flex-end' },

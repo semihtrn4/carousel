@@ -1,8 +1,9 @@
 import { useState, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Dimensions, Animated, Easing } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, Check, X } from 'lucide-react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors } from '@/constants/colors';
 
 const UNIQUE_PREVIEW_MARKER = 'carousel_studio_preview_001';
@@ -15,10 +16,45 @@ const RATIOS = {
   landscape: { width: 1920, height: 1080 },
 };
 
+// Basit SVG-free circular progress — sadece Animated ile
+function CircularProgress({ secs }: { secs: number }) {
+  const SIZE = 80;
+  const STROKE = 6;
+  const R = (SIZE - STROKE) / 2;
+  const CIRC = 2 * Math.PI * R;
+  // max 10 saniye göster, sonra dolu kalır
+  const progress = Math.min(secs / 10, 1);
+  const dashOffset = CIRC * (1 - progress);
+
+  return (
+    <View style={{ width: SIZE, height: SIZE, justifyContent: 'center', alignItems: 'center' }}>
+      {/* Track */}
+      <View style={{
+        position: 'absolute', width: SIZE, height: SIZE, borderRadius: SIZE / 2,
+        borderWidth: STROKE, borderColor: Colors.dark.border,
+      }} />
+      {/* Progress arc — border trick ile yaklaşık gösterim */}
+      <View style={{
+        position: 'absolute', width: SIZE, height: SIZE, borderRadius: SIZE / 2,
+        borderWidth: STROKE,
+        borderTopColor: Colors.dark.accent,
+        borderRightColor: progress > 0.25 ? Colors.dark.accent : Colors.dark.border,
+        borderBottomColor: progress > 0.5 ? Colors.dark.accent : Colors.dark.border,
+        borderLeftColor: progress > 0.75 ? Colors.dark.accent : Colors.dark.border,
+        transform: [{ rotate: '-90deg' }],
+      }} />
+      <Text style={{ fontSize: 18, fontWeight: '700', color: Colors.dark.accent }}>{secs}s</Text>
+    </View>
+  );
+}
+
 export default function CarouselStudioPreview() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [navigating, setNavigating] = useState(false);
+  const [navSecs, setNavSecs] = useState(0);
+  const navTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const scrollRef = useRef<ScrollView>(null);
 
   const imageData = params.imageData as string;
@@ -29,18 +65,37 @@ export default function CarouselStudioPreview() {
 
   const dims = RATIOS[ratio as keyof typeof RATIOS] || RATIOS.portrait;
 
-  const goToExport = useCallback(() => {
-    router.push({
-      pathname: '/export',
-      params: {
-        imageData,
-        slides: slides.toString(),
-        ratio,
-        projectId,
-        canvasData,
-      },
-    });
-  }, [router, imageData, slides, ratio, projectId, canvasData]);
+  const goToExport = useCallback(async () => {
+    if (navigating) return;
+    setNavigating(true);
+    setNavSecs(0);
+
+    // Saniye sayacı başlat
+    navTimerRef.current = setInterval(() => {
+      setNavSecs(s => s + 1);
+    }, 1000);
+
+    try {
+      // imageData büyük base64 olduğu için AsyncStorage üzerinden geçir
+      await AsyncStorage.setItem('__preview_imageData', imageData);
+    } catch (_) {}
+
+    // Kısa bir tick — UI'ın overlay'i render etmesine izin ver
+    setTimeout(() => {
+      if (navTimerRef.current) { clearInterval(navTimerRef.current); navTimerRef.current = null; }
+      router.push({
+        pathname: '/export',
+        params: {
+          imageDataKey: '__preview_imageData',
+          slides: slides.toString(),
+          ratio,
+          projectId,
+          canvasData,
+        },
+      });
+      setNavigating(false);
+    }, 80);
+  }, [router, imageData, slides, ratio, projectId, canvasData, navigating]);
 
   const goBack = useCallback(() => {
     router.back();
@@ -124,15 +179,30 @@ export default function CarouselStudioPreview() {
       </View>
 
       <View style={styles.actions}>
-        <TouchableOpacity style={styles.editBtn} onPress={goBack}>
+        <TouchableOpacity style={styles.editBtn} onPress={goBack} disabled={navigating}>
           <X size={20} color={Colors.dark.text} />
           <Text style={styles.editText}>Edit More</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.exportBtn} onPress={goToExport}>
+        <TouchableOpacity
+          style={[styles.exportBtn, navigating && styles.exportBtnDisabled]}
+          onPress={goToExport}
+          disabled={navigating}
+        >
           <Check size={20} color={Colors.dark.background} />
           <Text style={styles.exportText}>Looks Good</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Loading Overlay */}
+      {navigating && (
+        <View style={styles.overlay}>
+          <View style={styles.overlayCard}>
+            <CircularProgress secs={navSecs} />
+            <Text style={styles.overlayTitle}>Hazırlanıyor...</Text>
+            <Text style={styles.overlaySub}>Export ekranına yönlendiriliyorsunuz</Text>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -163,5 +233,10 @@ const styles = StyleSheet.create({
   editBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.dark.surface, paddingVertical: 16, borderRadius: 12, gap: 8 },
   editText: { fontSize: 16, fontWeight: '600', color: Colors.dark.text },
   exportBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.dark.accent, paddingVertical: 16, borderRadius: 12, gap: 8 },
+  exportBtnDisabled: { opacity: 0.5 },
   exportText: { fontSize: 16, fontWeight: '600', color: Colors.dark.background },
+  overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', alignItems: 'center', zIndex: 999 },
+  overlayCard: { backgroundColor: Colors.dark.surface, borderRadius: 24, padding: 36, alignItems: 'center', width: 260, gap: 16 },
+  overlayTitle: { fontSize: 17, fontWeight: '700', color: Colors.dark.text },
+  overlaySub: { fontSize: 13, color: Colors.dark.textMuted, textAlign: 'center', lineHeight: 18 },
 });

@@ -1,9 +1,10 @@
 // Unique identifier: CAROUSEL_STUDIO_TEMPLATES_001
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Layers } from 'lucide-react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors } from '@/constants/colors';
 import { TEMPLATES, type Template } from '@/constants/templates';
 
@@ -22,6 +23,13 @@ const CATEGORIES = [
 export default function CarouselStudioTemplates() {
   const router = useRouter();
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [defaultRatio, setDefaultRatio] = useState('portrait');
+  const [defaultSlides, setDefaultSlides] = useState(3);
+
+  useEffect(() => {
+    AsyncStorage.getItem('settings_default_ratio').then(v => { if (v) setDefaultRatio(v); });
+    AsyncStorage.getItem('settings_default_slides').then(v => { if (v) setDefaultSlides(parseInt(v, 10)); });
+  }, []);
 
   const filteredTemplates = TEMPLATES.filter(
     (t) => selectedCategory === 'all' || t.category === selectedCategory
@@ -42,11 +50,11 @@ export default function CarouselStudioTemplates() {
     router.push({
       pathname: '/editor',
       params: {
-        slides: '3',
-        ratio: 'portrait',
+        slides: defaultSlides.toString(),
+        ratio: defaultRatio,
       },
     });
-  }, [router]);
+  }, [router, defaultRatio, defaultSlides]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
