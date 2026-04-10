@@ -151,6 +151,65 @@ export const FRAMES: Frame[] = [
     imageAsset: 'local_124',
   },
   {
+    id: 'frame-reels-cover',
+    name: 'Reels Cover',
+    platform: 'instagram',
+    ratio: 'story',
+    color: '#E1306C',
+    svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920">
+      <defs>
+        <linearGradient id="reelsGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+          <stop offset="0%" style="stop-color:#f09433"/>
+          <stop offset="25%" style="stop-color:#e6683c"/>
+          <stop offset="50%" style="stop-color:#dc2743"/>
+          <stop offset="75%" style="stop-color:#cc2366"/>
+          <stop offset="100%" style="stop-color:#bc1888"/>
+        </linearGradient>
+        <linearGradient id="bottomFade" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" style="stop-color:rgba(0,0,0,0);stop-opacity:0"/>
+          <stop offset="100%" style="stop-color:rgba(0,0,0,0.75);stop-opacity:1"/>
+        </linearGradient>
+      </defs>
+      <!-- Outer border -->
+      <rect x="6" y="6" width="1068" height="1908" rx="48" ry="48" fill="none" stroke="url(#reelsGrad)" stroke-width="12"/>
+      <!-- Bottom gradient overlay (UI area) -->
+      <rect x="0" y="1300" width="1080" height="620" rx="0" fill="url(#bottomFade)"/>
+      <!-- Reels icon top-left -->
+      <rect x="32" y="32" width="120" height="48" rx="24" fill="rgba(0,0,0,0.55)"/>
+      <text x="92" y="64" text-anchor="middle" fill="white" font-size="26" font-family="Arial" font-weight="bold" letter-spacing="1">Reels</text>
+      <!-- Right side action bar -->
+      <!-- Heart -->
+      <circle cx="1012" cy="1480" r="36" fill="rgba(0,0,0,0.45)"/>
+      <text x="1012" y="1492" text-anchor="middle" font-size="36" font-family="Arial">🤍</text>
+      <text x="1012" y="1530" text-anchor="middle" fill="rgba(255,255,255,0.8)" font-size="22" font-family="Arial">0</text>
+      <!-- Comment -->
+      <circle cx="1012" cy="1600" r="36" fill="rgba(0,0,0,0.45)"/>
+      <text x="1012" y="1612" text-anchor="middle" font-size="36" font-family="Arial">💬</text>
+      <text x="1012" y="1650" text-anchor="middle" fill="rgba(255,255,255,0.8)" font-size="22" font-family="Arial">0</text>
+      <!-- Share -->
+      <circle cx="1012" cy="1720" r="36" fill="rgba(0,0,0,0.45)"/>
+      <text x="1012" y="1732" text-anchor="middle" font-size="36" font-family="Arial">➤</text>
+      <!-- More -->
+      <circle cx="1012" cy="1820" r="36" fill="rgba(0,0,0,0.45)"/>
+      <text x="1012" y="1832" text-anchor="middle" fill="white" font-size="32" font-family="Arial" font-weight="bold">···</text>
+      <!-- Bottom: avatar + username + caption area -->
+      <circle cx="80" cy="1780" r="44" fill="none" stroke="white" stroke-width="3"/>
+      <circle cx="80" cy="1780" r="38" fill="rgba(255,255,255,0.15)"/>
+      <text x="80" y="1792" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-size="28" font-family="Arial">👤</text>
+      <!-- Username placeholder -->
+      <rect x="140" y="1762" width="220" height="28" rx="14" fill="rgba(255,255,255,0.2)"/>
+      <!-- Follow button -->
+      <rect x="376" y="1758" width="100" height="36" rx="18" fill="none" stroke="white" stroke-width="2"/>
+      <text x="426" y="1782" text-anchor="middle" fill="white" font-size="22" font-family="Arial" font-weight="600">Follow</text>
+      <!-- Caption placeholder -->
+      <rect x="140" y="1806" width="340" height="22" rx="11" fill="rgba(255,255,255,0.15)"/>
+      <!-- Music bar -->
+      <rect x="32" y="1860" width="680" height="36" rx="18" fill="rgba(255,255,255,0.12)"/>
+      <text x="56" y="1884" fill="rgba(255,255,255,0.7)" font-size="22" font-family="Arial">♪</text>
+      <rect x="80" y="1872" width="200" height="14" rx="7" fill="rgba(255,255,255,0.25)"/>
+    </svg>`,
+  },
+  {
     id: 'frame-ig-story',
     name: 'IG Story',
     platform: 'instagram',

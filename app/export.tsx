@@ -86,7 +86,7 @@ export default function CarouselStudioExport() {
   }, [projectId, slides, ratio, canvasData]);
 
   // UI'ın render etmesine fırsat vermek için her adım arasında küçük bir tick
-  const tick = () => new Promise<void>(resolve => setTimeout(resolve, 30));
+  const tick = () => new Promise<void>(resolve => setTimeout(resolve, 16));
 
   const exportImages = useCallback(async (name: string) => {
     setExporting(true);
@@ -103,18 +103,20 @@ export default function CarouselStudioExport() {
         return;
       }
 
-      setExportStep('Görsel boyutları okunuyor...');
-      setExportProgress(8);
+      setExportStep('Görsel hazırlanıyor...');
+      setExportProgress(10);
       await tick();
 
-      // Boyut okuma — ayrı manipülasyon yerine direkt crop'ta kullanacağız
+      // Boyutu ImageManipulator olmadan hesapla — imageData base64 URI'dan
+      // Canvas'tan gelen görüntü slides * slideW genişliğinde
+      // Gerçek boyutu bulmak için küçük bir manipülasyon yapıyoruz
       const sizeResult = await ImageManipulator.manipulateAsync(imageData, [], { compress: 1 });
       const imageWidth = sizeResult.width;
       const imageHeight = sizeResult.height;
       const cropW = Math.floor(imageWidth / slides);
 
       setExportStep('Thumbnail oluşturuluyor...');
-      setExportProgress(15);
+      setExportProgress(20);
       await tick();
 
       // Thumbnail — küçük, hızlı
@@ -126,24 +128,35 @@ export default function CarouselStudioExport() {
       const thumbnail = `data:image/jpeg;base64,${thumbResult.base64}`;
 
       setExportStep('Proje kaydediliyor...');
-      setExportProgress(20);
+      setExportProgress(25);
       await tick();
       await saveProjectToApp(thumbnail, name);
 
-      // Her slide: crop → yüksek kalite → galeriye kaydet
-      const assets: MediaLibrary.Asset[] = [];
-      for (let i = 0; i < slides; i++) {
-        const stepProgress = 20 + Math.round(((i) / slides) * 75);
-        setExportStep(`Slide ${i + 1} / ${slides} kaydediliyor...`);
-        setExportProgress(stepProgress);
-        await tick(); // UI'ın progress bar'ı güncellemesine izin ver
+      // Tüm slide'ları önce crop et (paralel)
+      setExportStep('Slide\'lar kesiliyor...');
+      setExportProgress(30);
+      await tick();
 
-        const cropResult = await ImageManipulator.manipulateAsync(
+      const cropPromises = Array.from({ length: slides }, (_, i) =>
+        ImageManipulator.manipulateAsync(
           imageData,
           [{ crop: { originX: i * cropW, originY: 0, width: cropW, height: imageHeight } }],
-          { format: ImageManipulator.SaveFormat.JPEG, compress: 0.95 } // yüksek kalite
-        );
-        const asset = await MediaLibrary.createAssetAsync(cropResult.uri);
+          { format: ImageManipulator.SaveFormat.JPEG, compress: 0.95 }
+        )
+      );
+      const cropResults = await Promise.all(cropPromises);
+
+      setExportProgress(75);
+      setExportStep('Galeriye kaydediliyor...');
+      await tick();
+
+      // Galeriye sırayla kaydet (MediaLibrary paralel desteklemez)
+      const assets: MediaLibrary.Asset[] = [];
+      for (let i = 0; i < cropResults.length; i++) {
+        const stepProgress = 75 + Math.round(((i + 1) / slides) * 25);
+        setExportProgress(stepProgress);
+        setExportStep(`Slide ${i + 1} / ${slides} kaydediliyor...`);
+        const asset = await MediaLibrary.createAssetAsync(cropResults[i].uri);
         assets.push(asset);
       }
 

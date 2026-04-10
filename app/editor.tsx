@@ -62,6 +62,8 @@ export default function EditorScreen() {
   const [exporting, setExporting] = useState(false);
   const [exportSecs, setExportSecs] = useState(0);
   const exportTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [removingBg, setRemovingBg] = useState(false);
+  const pendingBgRemovalRef = useRef<string | null>(null);
 
   useEffect(() => {
     const dims = RATIOS[ratio];
@@ -116,6 +118,7 @@ export default function EditorScreen() {
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation@0.1.1675465747/selfie_segmentation.js" crossorigin="anonymous"></script>
 <link href="https://fonts.googleapis.com/css2?family=Georgia&family=Courier+New&family=Impact&family=Palatino&family=Trebuchet+MS&family=Verdana&family=Garamond&family=Baskerville&family=Playfair+Display&family=Oswald&family=Roboto&family=Montserrat&display=swap" rel="stylesheet">
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -197,8 +200,62 @@ window.addSticker = (emoji, left) => { const t = new fabric.Text(emoji, { id: Da
 window.setBg = (color) => { c.setBackgroundColor(color, () => { const lineColor = getContrastLineColor(color); ghostLines.forEach(l => l.set({ stroke: lineColor })); c.renderAll(); }); };
 window.undo = () => { if (undoStack.length > 1) { redoStack.push(undoStack.pop()); const s = undoStack[undoStack.length - 1]; c.loadFromJSON(s, c.renderAll.bind(c)); } };
 window.redo = () => { if (redoStack.length > 0) { const s = redoStack.pop(); undoStack.push(s); c.loadFromJSON(s, c.renderAll.bind(c)); } };
-window.exportCanvas = () => { window.hideGrid(); setTimeout(() => { const data = c.toDataURL({ format: 'jpeg', quality: 0.92, multiplier: 1 }); const json = JSON.stringify(c.toJSON(['id'])); window.showGrid(); window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'export', data, canvasJson: json })); }, 50); };
-window.exportPreview = () => { window.hideGrid(); setTimeout(() => { const data = c.toDataURL({ format: 'jpeg', quality: 0.92, multiplier: 1 }); const json = JSON.stringify(c.toJSON(['id'])); window.showGrid(); window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'export', data, canvasJson: json, isPreview: false })); }, 50); };
+window.exportCanvas = () => { window.hideGrid(); setTimeout(() => { const realMultiplier = 1 / c.getZoom(); const data = c.toDataURL({ format: 'jpeg', quality: 0.95, multiplier: realMultiplier }); const json = JSON.stringify(c.toJSON(['id'])); window.showGrid(); window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'export', data, canvasJson: json })); }, 50); };
+window.exportPreview = () => { window.hideGrid(); setTimeout(() => { const realMultiplier = 1 / c.getZoom(); const data = c.toDataURL({ format: 'jpeg', quality: 0.95, multiplier: realMultiplier }); const json = JSON.stringify(c.toJSON(['id'])); window.showGrid(); window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'export', data, canvasJson: json, isPreview: false })); }, 50); };
+
+// ── AI Background Removal (MediaPipe Selfie Segmentation) ──────────────────
+let _segmenter = null;
+let _segmenterReady = false;
+let _segmenterLoading = false;
+
+function initSegmenter(callback) {
+  if (_segmenterReady) { callback(_segmenter); return; }
+  if (_segmenterLoading) { const t = setInterval(() => { if (_segmenterReady) { clearInterval(t); callback(_segmenter); } }, 200); return; }
+  _segmenterLoading = true;
+  const seg = new SelfieSegmentation({ locateFile: (f) => 'https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation@0.1.1675465747/' + f });
+  seg.setOptions({ modelSelection: 1, selfieMode: false });
+  seg.onResults((results) => {
+    if (window._bgRemovalResolve) {
+      window._bgRemovalResolve(results.segmentationMask);
+      window._bgRemovalResolve = null;
+    }
+  });
+  seg.initialize().then(() => { _segmenter = seg; _segmenterReady = true; _segmenterLoading = false; callback(seg); }).catch(e => { _segmenterLoading = false; window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'bgRemoveError', error: e.toString() })); });
+}
+
+window.removeBg = (dataUri, targetLeft) => {
+  window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'bgRemoveStart' }));
+  const img = new Image();
+  img.onload = () => {
+    initSegmenter((seg) => {
+      window._bgRemovalResolve = (mask) => {
+        // Orijinal boyutta offscreen canvas
+        const oc = document.createElement('canvas');
+        oc.width = img.width; oc.height = img.height;
+        const ctx = oc.getContext('2d');
+        // Önce orijinal resmi çiz
+        ctx.drawImage(img, 0, 0);
+        // Mask'i ayrı canvas'a çiz
+        const mc = document.createElement('canvas');
+        mc.width = img.width; mc.height = img.height;
+        const mctx = mc.getContext('2d');
+        mctx.drawImage(mask, 0, 0, img.width, img.height);
+        const maskData = mctx.getImageData(0, 0, img.width, img.height);
+        // Alpha kanalını mask'e göre ayarla
+        const imgData = ctx.getImageData(0, 0, img.width, img.height);
+        for (let i = 0; i < maskData.data.length; i += 4) {
+          imgData.data[i + 3] = maskData.data[i]; // mask kırmızı kanalı = alpha
+        }
+        ctx.putImageData(imgData, 0, 0);
+        const resultDataUri = oc.toDataURL('image/png');
+        window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'bgRemoveDone', data: resultDataUri, targetLeft }));
+      };
+      seg.send({ image: img });
+    });
+  };
+  img.onerror = () => { window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'bgRemoveError', error: 'Image load failed' })); };
+  img.src = dataUri;
+};
 window.deleteSel = () => { const a = c.getActiveObject(); if (a) { c.remove(a); c.discardActiveObject(); c.renderAll(); } };
 window.selectObject = (id) => { const obj = c.getObjects().find(o => o.id === id); if (!obj) return; c.setActiveObject(obj); c.renderAll(); };
 window.bringForward = (id) => { const obj = c.getObjects().find(o => o.id === id); if (!obj) return; c.bringForward(obj); c.renderAll(); sendLayersUpdate(); };
@@ -323,24 +380,66 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
         setSelectedObjectId(null);
         setSelectedObject(null);
       }
+      else if (m.type === 'bgRemoveStart') {
+        setRemovingBg(true);
+      }
+      else if (m.type === 'bgRemoveDone') {
+        setRemovingBg(false);
+        // Arka planı kaldırılmış PNG'yi canvas'a ekle
+        const slideW = RATIOS[ratio].width;
+        const targetLeft = m.targetLeft || ((curSlide - 1) * slideW + slideW / 2);
+        webRef.current?.injectJavaScript(`window.addImg('${m.data}', ${targetLeft}); true;`);
+      }
+      else if (m.type === 'bgRemoveError') {
+        setRemovingBg(false);
+        Alert.alert('Remove BG Failed', 'İnternet bağlantınızı kontrol edin ve tekrar deneyin.');
+      }
     } catch (err) { console.error('Msg error:', err); }
   };
 
   const pickImg = async () => {
-    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: false, quality: 0.8 });
+    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: false, quality: 1 });
     if (!res.canceled && res.assets[0]) {
       try {
+        const asset = res.assets[0];
+        // Maksimum 2160px genişliğe resize et — canvas 1080px, 2x yeterli
+        const maxW = 2160;
+        const resizeOpts = asset.width > maxW ? [{ resize: { width: maxW } }] : [];
         const manipResult = await ImageManipulator.manipulateAsync(
-          res.assets[0].uri,
-          [],
-          { compress: 1, format: ImageManipulator.SaveFormat.PNG, base64: true }
+          asset.uri,
+          resizeOpts as any,
+          { compress: 0.92, format: ImageManipulator.SaveFormat.JPEG, base64: true }
         );
-        const dataUri = `data:image/png;base64,${manipResult.base64}`;
+        const dataUri = `data:image/jpeg;base64,${manipResult.base64}`;
         const slideW = RATIOS[ratio].width;
         const targetLeft = (curSlide - 1) * slideW + slideW / 2;
         webRef.current?.injectJavaScript(`window.addImg('${dataUri}', ${targetLeft}); true;`);
       } catch (err) {
         console.error('Image load error:', err);
+      }
+    }
+  };
+
+  const pickImgAndRemoveBg = async () => {
+    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: false, quality: 1 });
+    if (!res.canceled && res.assets[0]) {
+      try {
+        const asset = res.assets[0];
+        // MediaPipe için max 640px yeterli — hem hızlı hem kaliteli
+        const maxW = 640;
+        const resizeOpts = asset.width > maxW ? [{ resize: { width: maxW } }] : [];
+        const manipResult = await ImageManipulator.manipulateAsync(
+          asset.uri,
+          resizeOpts as any,
+          { compress: 0.9, format: ImageManipulator.SaveFormat.JPEG, base64: true }
+        );
+        const dataUri = `data:image/jpeg;base64,${manipResult.base64}`;
+        const slideW = RATIOS[ratio].width;
+        const targetLeft = (curSlide - 1) * slideW + slideW / 2;
+        webRef.current?.injectJavaScript(`window.removeBg('${dataUri}', ${targetLeft}); true;`);
+      } catch (err) {
+        console.error('Remove BG error:', err);
+        setRemovingBg(false);
       }
     }
   };
@@ -429,11 +528,28 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
     switch (activeTab) {
       case 'photos': return (
         <View style={eStyles.panel}>
-          <TouchableOpacity style={eStyles.actionBtn} onPress={pickImg}>
-            <ImageIcon size={24} color={Colors.dark.background} />
-            <Text style={eStyles.actionText}>Add Photo</Text>
-          </TouchableOpacity>
-          <Text style={eStyles.hint}>Tap to select photos from gallery</Text>
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            <TouchableOpacity style={[eStyles.actionBtn, { flex: 1 }]} onPress={pickImg}>
+              <ImageIcon size={22} color={Colors.dark.background} />
+              <Text style={eStyles.actionText}>Add Photo</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[eStyles.actionBtn, { flex: 1, backgroundColor: removingBg ? Colors.dark.surface : '#8338EC' }, removingBg && { opacity: 0.7 }]}
+              onPress={pickImgAndRemoveBg}
+              disabled={removingBg}
+            >
+              {removingBg
+                ? <ActivityIndicator size="small" color={Colors.dark.accent} />
+                : <Text style={{ fontSize: 18 }}>✂️</Text>
+              }
+              <Text style={[eStyles.actionText, { color: removingBg ? Colors.dark.textMuted : Colors.dark.background }]}>
+                {removingBg ? 'İşleniyor...' : 'Remove BG'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={eStyles.hint}>
+            {removingBg ? '🤖 AI arka plan kaldırıyor...' : 'Remove BG: selfie & portre için en iyi sonuç'}
+          </Text>
         </View>
       );
       case 'text': return (
