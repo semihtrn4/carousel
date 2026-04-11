@@ -83,7 +83,7 @@ export default function CarouselStudioTemplates() {
         </View>
         <View style={styles.blankInfo}>
           <Text style={styles.blankTitle}>Blank Canvas</Text>
-          <Text style={styles.blankSubtitle}>Start from scratch</Text>
+          <Text style={styles.blankSubtitle}>{defaultSlides} slides · {defaultRatio}</Text>
         </View>
         <Text style={styles.blankArrow}>→</Text>
       </TouchableOpacity>

@@ -76,6 +76,8 @@ export default function EditorScreen() {
       if (t) {
         setSlides(t.slides);
         setRatio(t.ratio);
+        const bgColor = t.elements[0]?.color || '#F5F5F0';
+        setSelColor(bgColor);
       }
     }
   }, [params.templateId]);
@@ -190,21 +192,32 @@ function sendLayersUpdate() {
   }));
   window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'layersUpdate', layers }));
 }
-c.on('object:added', () => { save(); sendLayersUpdate(); });
-c.on('object:removed', () => { save(); sendLayersUpdate(); });
+c.on('object:added', (e) => { if (e.target && e.target.id && e.target.id.startsWith('__ghost')) return; save(); sendLayersUpdate(); });
+c.on('object:removed', (e) => { if (e.target && e.target.id && e.target.id.startsWith('__ghost')) return; save(); sendLayersUpdate(); });
 c.on('object:modified', () => { save(); sendLayersUpdate(); });
 function getVisibleCenterY() { return (c.getHeight() / 2) / c.getZoom(); }
 window.addImg = (src, targetLeft) => { fabric.Image.fromURL(src, (img) => { const scale = Math.min(${dims.width} / img.width, ${h} / img.height); img.set({ id: Date.now().toString(), left: targetLeft || (${w / 2}), top: getVisibleCenterY(), scaleX: scale, scaleY: scale, ...MOBILE_CONTROLS }); c.add(img); ghostLines.forEach(l => c.bringToFront(l)); c.setActiveObject(img); c.renderAll(); }); };
 window.addTxt = (txt, opts) => { const t = new fabric.Text(txt, { id: Date.now().toString(), left: opts.left || ${w / 2}, top: getVisibleCenterY(), fontFamily: opts.fontFamily || 'Arial', fontSize: opts.fontSize || 48, fill: opts.color || '#fff', textAlign: 'center', originX: 'center', originY: 'center', ...MOBILE_CONTROLS }); c.add(t); ghostLines.forEach(l => c.bringToFront(l)); c.setActiveObject(t); c.renderAll(); };
 window.addSticker = (emoji, left) => { const t = new fabric.Text(emoji, { id: Date.now().toString(), left: left || ${w / 2}, top: getVisibleCenterY(), fontSize: 100, originX: 'center', originY: 'center', ...MOBILE_CONTROLS }); c.add(t); ghostLines.forEach(l => c.bringToFront(l)); c.setActiveObject(t); c.renderAll(); };
-window.setBg = (color) => { c.setBackgroundColor(color, () => { const lineColor = getContrastLineColor(color); ghostLines.forEach(l => l.set({ stroke: lineColor })); c.renderAll(); }); };
+window.setBg = (color) => {
+  c.setBackgroundColor(color, () => {
+    const lineColor = getContrastLineColor(color);
+    ghostLines.forEach(l => l.set({ stroke: lineColor }));
+    ghostLines.forEach(l => c.bringToFront(l));
+    c.renderAll();
+  });
+};
 window.setBgPattern = (svgStr) => {
   const img = new Image();
   const blob = new Blob([svgStr], { type: 'image/svg+xml' });
   const url = URL.createObjectURL(blob);
   img.onload = () => {
     const pat = new fabric.Pattern({ source: img, repeat: 'repeat' });
-    c.setBackgroundColor(pat, () => { ghostLines.forEach(l => l.set({ stroke: 'rgba(255,255,255,0.5)' })); c.renderAll(); });
+    c.setBackgroundColor(pat, () => {
+      ghostLines.forEach(l => l.set({ stroke: 'rgba(255,255,255,0.5)' }));
+      ghostLines.forEach(l => c.bringToFront(l));
+      c.renderAll();
+    });
     URL.revokeObjectURL(url);
   };
   img.src = url;
@@ -310,8 +323,8 @@ window.setBlur = (v) => { const a = c.getActiveObject(); if (!a) return; a.set({
 window.setStroke = (color, width) => { const a = c.getActiveObject(); if (!a) return; a.set({ stroke: color, strokeWidth: width }); c.renderAll(); };
 window.setFill = (color) => { const a = c.getActiveObject(); if (!a) return; a.set({ fill: color }); c.renderAll(); };
 window.moveToSlide = (slideIndex, slideWidth) => { const a = c.getActiveObject(); if (!a) return; a.set({ left: (slideIndex - 1) * slideWidth + slideWidth / 2 }); a.setCoords(); c.renderAll(); };
-window.addFrame = (svgStr, w, h) => { fabric.loadSVGFromString(svgStr, (objects, options) => { const svg = fabric.util.groupSVGElements(objects, options); svg.set({ left: 0, top: 0, scaleX: w / svg.width, scaleY: h / svg.height, id: Date.now().toString(), selectable: true, ...MOBILE_CONTROLS }); c.add(svg); ghostLines.forEach(l => c.bringToFront(l)); c.renderAll(); }); };
-window.addFrameImg = (src, w, h) => { fabric.Image.fromURL(src, (img) => { img.set({ left: 0, top: 0, scaleX: w / img.width, scaleY: h / img.height, id: Date.now().toString(), selectable: true, ...MOBILE_CONTROLS }); c.add(img); ghostLines.forEach(l => c.bringToFront(l)); c.renderAll(); }); };
+window.addFrame = (svgStr, w, h) => { fabric.loadSVGFromString(svgStr, (objects, options) => { const svg = fabric.util.groupSVGElements(objects, options); svg.set({ left: ${w / 2}, top: getVisibleCenterY(), scaleX: w / svg.width, scaleY: h / svg.height, originX: 'center', originY: 'center', id: Date.now().toString(), selectable: true, ...MOBILE_CONTROLS }); c.add(svg); ghostLines.forEach(l => c.bringToFront(l)); c.setActiveObject(svg); c.renderAll(); }); };
+window.addFrameImg = (src, w, h) => { fabric.Image.fromURL(src, (img) => { img.set({ left: ${w / 2}, top: getVisibleCenterY(), scaleX: w / img.width, scaleY: h / img.height, originX: 'center', originY: 'center', id: Date.now().toString(), selectable: true, ...MOBILE_CONTROLS }); c.add(img); ghostLines.forEach(l => c.bringToFront(l)); c.setActiveObject(img); c.renderAll(); }); };
 c.on('selection:created', (e) => {
   const obj = e.selected[0];
   if (!obj) return;
@@ -398,6 +411,7 @@ document.addEventListener('touchend', (e) => {
     window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'slideChange', dir }));
   }
 });
+save(); // ilk state'i kaydet — undo çalışsın
 window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
 </script>
 </body>
@@ -407,7 +421,17 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
   const onMsg = (e: WebViewMessageEvent) => {
     try {
       const m = JSON.parse(e.nativeEvent.data);
-      if (m.type === 'ready') setLoading(false);
+      if (m.type === 'ready') {
+        setLoading(false);
+        // Template rengi canvas hazır olunca uygula
+        if (params.templateId) {
+          const t = TEMPLATES.find((x) => x.id === params.templateId);
+          if (t) {
+            const bgColor = t.elements[0]?.color || '#F5F5F0';
+            webRef.current?.injectJavaScript(`window.setBg('${bgColor}'); true;`);
+          }
+        }
+      }
       else if (m.type === 'export') onExport(m.data, m.canvasJson, m.isPreview);
       else if (m.type === 'slideChange') {
         setCurSlide(prev => Math.max(1, Math.min(slides, prev + m.dir)));
@@ -463,6 +487,33 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
     }
   };
 
+  const pickImgAndCrop = async () => {
+    // allowsEditing: true → native crop UI (iOS/Android)
+    const res = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      quality: 1,
+    });
+    if (!res.canceled && res.assets[0]) {
+      try {
+        const asset = res.assets[0];
+        const maxW = 2160;
+        const resizeOpts = asset.width > maxW ? [{ resize: { width: maxW } }] : [];
+        const manipResult = await ImageManipulator.manipulateAsync(
+          asset.uri,
+          resizeOpts as any,
+          { compress: 0.92, format: ImageManipulator.SaveFormat.JPEG, base64: true }
+        );
+        const dataUri = `data:image/jpeg;base64,${manipResult.base64}`;
+        const slideW = RATIOS[ratio].width;
+        const targetLeft = (curSlide - 1) * slideW + slideW / 2;
+        webRef.current?.injectJavaScript(`window.addImg('${dataUri}', ${targetLeft}); true;`);
+      } catch (err) {
+        console.error('Crop image error:', err);
+      }
+    }
+  };
+
   const pickImgAndRemoveBg = async () => {
     const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: false, quality: 1 });
     if (!res.canceled && res.assets[0]) {
@@ -503,25 +554,8 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
     webRef.current?.injectJavaScript(`window.addSticker('${emoji}', ${targetLeft}); true;`);
   };
 
-  const addFrameToCanvas = async (f: import('@/constants/templates').Frame, w: number, h: number) => {
-    if (f.imageAsset === 'local_124') {
-      // 124.jpg'yi base64'e çevir ve canvas'a ekle
-      try {
-        const { Image: RNImage } = require('react-native');
-        const source = require('@/assets/124.jpg');
-        const resolved = RNImage.resolveAssetSource(source);
-        const uri = resolved.uri;
-        const manipResult = await ImageManipulator.manipulateAsync(
-          uri,
-          [],
-          { compress: 0.9, format: ImageManipulator.SaveFormat.JPEG, base64: true }
-        );
-        const dataUri = `data:image/jpeg;base64,${manipResult.base64}`;
-        webRef.current?.injectJavaScript(`window.addFrameImg('${dataUri}', ${w}, ${h}); true;`);
-      } catch (err) {
-        console.error('Frame image load error:', err);
-      }
-    } else if (f.svg) {
+  const addFrameToCanvas = (f: import('@/constants/templates').Frame, w: number, h: number) => {
+    if (f.svg) {
       webRef.current?.injectJavaScript(`window.addFrame(${JSON.stringify(f.svg)}, ${w}, ${h}); true;`);
     }
   };
@@ -585,6 +619,10 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
               <ImageIcon size={22} color={Colors.dark.background} />
               <Text style={eStyles.actionText}>Add Photo</Text>
             </TouchableOpacity>
+            <TouchableOpacity style={[eStyles.actionBtn, { flex: 1, backgroundColor: '#3A86FF' }]} onPress={pickImgAndCrop}>
+              <Text style={{ fontSize: 18 }}>✂️</Text>
+              <Text style={eStyles.actionText}>Crop</Text>
+            </TouchableOpacity>
             <TouchableOpacity
               style={[eStyles.actionBtn, { flex: 1, backgroundColor: removingBg ? Colors.dark.surface : '#8338EC' }, removingBg && { opacity: 0.7 }]}
               onPress={pickImgAndRemoveBg}
@@ -592,7 +630,7 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
             >
               {removingBg
                 ? <ActivityIndicator size="small" color={Colors.dark.accent} />
-                : <Text style={{ fontSize: 18 }}>✂️</Text>
+                : <Text style={{ fontSize: 18 }}>🪄</Text>
               }
               <Text style={[eStyles.actionText, { color: removingBg ? Colors.dark.textMuted : Colors.dark.background }]}>
                 {removingBg ? 'İşleniyor...' : 'Remove BG'}
@@ -600,7 +638,7 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
             </TouchableOpacity>
           </View>
           <Text style={eStyles.hint}>
-            {removingBg ? '🤖 AI arka plan kaldırıyor...' : 'Remove BG: selfie & portre için en iyi sonuç'}
+            {removingBg ? '🤖 AI arka plan kaldırıyor...' : 'Crop: kırp ve ekle · Remove BG: AI ile arka planı kaldır'}
           </Text>
         </View>
       );
@@ -805,7 +843,7 @@ window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
             <TouchableOpacity key={layer.id}
               style={[eStyles.trayItem, selectedObjectId === layer.id && eStyles.trayItemActive]}
               onPress={() => webRef.current?.injectJavaScript(`window.selectObject('${layer.id}'); true;`)}>
-              <Text style={{ fontSize: 20 }}>{layer.type === 'text' ? 'T' : layer.type === 'image' ? '🖼' : '◻'}</Text>
+              <Text style={{ fontSize: 20, color: '#FFFFFF' }}>{layer.type === 'text' ? 'T' : layer.type === 'image' ? '🖼' : '◻'}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -1045,16 +1083,16 @@ const eStyles = StyleSheet.create({
   layerBtn: { fontSize: 18, paddingHorizontal: 8, color: Colors.dark.textSecondary },
   elementTray: { backgroundColor: Colors.dark.background, borderTopWidth: 1, borderTopColor: Colors.dark.border, maxHeight: 60 },
   trayItem: { width: 44, height: 44, borderRadius: 8, backgroundColor: Colors.dark.surface, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: 'transparent' },
-  trayItemActive: { borderColor: Colors.dark.accent },
+  trayItemActive: { borderColor: '#FFFFFF' },
   objectToolbar: { backgroundColor: Colors.dark.surfaceElevated, borderTopWidth: 1, borderTopColor: Colors.dark.border, maxHeight: 90 },
   toolBtn: { alignItems: 'center', paddingHorizontal: 10, paddingVertical: 4, minWidth: 52 },
-  toolIcon: { fontSize: 20 },
-  toolLabel: { fontSize: 10, color: Colors.dark.textMuted, marginTop: 2 },
+  toolIcon: { fontSize: 20, color: '#FFFFFF' },
+  toolLabel: { fontSize: 10, color: '#FFFFFF', marginTop: 2 },
   toolDivider: { width: 1, backgroundColor: Colors.dark.border, marginHorizontal: 4, alignSelf: 'stretch' },
   arrowPad: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, paddingVertical: 2 },
   arrowMiddleRow: { flexDirection: 'row', alignItems: 'center' },
   arrowBtn: { width: 28, height: 28, borderRadius: 6, backgroundColor: Colors.dark.surface, justifyContent: 'center', alignItems: 'center', margin: 1 },
-  arrowIcon: { fontSize: 12, color: Colors.dark.text },
+  arrowIcon: { fontSize: 12, color: '#FFFFFF' },
   arrowCenter: { width: 28, height: 28 },
   toolColorBtn: { width: 32, height: 32, borderRadius: 16, marginTop: 6 },
   colorPreview: { width: 28, height: 28, borderRadius: 14, borderWidth: 1, borderColor: Colors.dark.border },

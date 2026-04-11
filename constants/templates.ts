@@ -136,8 +136,7 @@ export type Frame = {
   platform: string;
   ratio: string;
   svg?: string;
-  imageAsset?: string; // 'local' means use bundled asset
-  color: string; // platform brand color for UI button
+  color: string;
 };
 
 export const FRAMES: Frame[] = [
@@ -148,7 +147,46 @@ export const FRAMES: Frame[] = [
     platform: 'instagram',
     ratio: 'portrait',
     color: '#E1306C',
-    imageAsset: 'local_124',
+    svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1350">
+      <defs>
+        <linearGradient id="igPostGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+          <stop offset="0%" style="stop-color:#f09433"/>
+          <stop offset="25%" style="stop-color:#e6683c"/>
+          <stop offset="50%" style="stop-color:#dc2743"/>
+          <stop offset="75%" style="stop-color:#cc2366"/>
+          <stop offset="100%" style="stop-color:#bc1888"/>
+        </linearGradient>
+        <linearGradient id="igTopFade" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" style="stop-color:rgba(0,0,0,0.55);stop-opacity:1"/>
+          <stop offset="100%" style="stop-color:rgba(0,0,0,0);stop-opacity:0"/>
+        </linearGradient>
+        <linearGradient id="igBottomFade" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" style="stop-color:rgba(0,0,0,0);stop-opacity:0"/>
+          <stop offset="100%" style="stop-color:rgba(0,0,0,0.65);stop-opacity:1"/>
+        </linearGradient>
+      </defs>
+      <!-- Outer gradient border -->
+      <rect x="6" y="6" width="1068" height="1338" rx="24" ry="24" fill="none" stroke="url(#igPostGrad)" stroke-width="12"/>
+      <!-- Top overlay -->
+      <rect x="0" y="0" width="1080" height="120" rx="24" fill="url(#igTopFade)"/>
+      <!-- Bottom overlay -->
+      <rect x="0" y="1230" width="1080" height="120" rx="0" fill="url(#igBottomFade)"/>
+      <!-- Top bar: avatar + username + follow -->
+      <circle cx="60" cy="60" r="36" fill="none" stroke="url(#igPostGrad)" stroke-width="3"/>
+      <circle cx="60" cy="60" r="30" fill="rgba(255,255,255,0.15)"/>
+      <text x="60" y="72" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-size="24" font-family="Arial">👤</text>
+      <rect x="108" y="44" width="200" height="22" rx="11" fill="rgba(255,255,255,0.25)"/>
+      <rect x="108" y="72" width="130" height="16" rx="8" fill="rgba(255,255,255,0.15)"/>
+      <rect x="900" y="38" width="140" height="44" rx="22" fill="none" stroke="white" stroke-width="2"/>
+      <text x="970" y="66" text-anchor="middle" fill="white" font-size="24" font-family="Arial" font-weight="600">Follow</text>
+      <!-- Bottom bar: like, comment, share, save -->
+      <text x="40" y="1300" fill="white" font-size="52" font-family="Arial">🤍</text>
+      <text x="120" y="1300" fill="white" font-size="52" font-family="Arial">💬</text>
+      <text x="200" y="1300" fill="white" font-size="52" font-family="Arial">➤</text>
+      <text x="1020" y="1300" text-anchor="middle" fill="white" font-size="52" font-family="Arial">🔖</text>
+      <!-- Caption placeholder -->
+      <rect x="40" y="1316" width="280" height="18" rx="9" fill="rgba(255,255,255,0.2)"/>
+    </svg>`,
   },
   {
     id: 'frame-reels-cover',
@@ -315,10 +353,11 @@ export const FRAMES: Frame[] = [
     svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
       <rect x="8" y="8" width="1904" height="1064" rx="16" ry="16" fill="none" stroke="#ffffff" stroke-width="10"/>
       <rect x="24" y="24" width="1872" height="1032" rx="10" ry="10" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="3"/>
-      <!-- X logo -->
       <rect x="0" y="0" width="1920" height="80" rx="16" fill="rgba(0,0,0,0.5)"/>
-      <text x="48" y="56" fill="white" font-size="44" font-family="Arial" font-weight="bold">𝕏</text>
-      <text x="960" y="1060" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="28" font-family="Arial" font-weight="bold">X · TWITTER</text>
+      <rect x="16" y="12" width="56" height="56" rx="8" fill="rgba(255,255,255,0.15)"/>
+      <line x1="24" y1="20" x2="64" y2="60" stroke="white" stroke-width="8" stroke-linecap="round"/>
+      <line x1="64" y1="20" x2="24" y2="60" stroke="white" stroke-width="8" stroke-linecap="round"/>
+      <text x="960" y="1060" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="28" font-family="Arial" font-weight="bold">X - TWITTER</text>
     </svg>`,
   },
   {
@@ -330,7 +369,10 @@ export const FRAMES: Frame[] = [
     svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1080">
       <rect x="8" y="8" width="1064" height="1064" rx="16" ry="16" fill="none" stroke="#ffffff" stroke-width="10"/>
       <rect x="24" y="24" width="1032" height="1032" rx="10" ry="10" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="3"/>
-      <text x="540" y="1060" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="28" font-family="Arial" font-weight="bold">𝕏 · TWITTER</text>
+      <rect x="16" y="16" width="80" height="80" rx="12" fill="rgba(255,255,255,0.15)"/>
+      <line x1="28" y1="28" x2="84" y2="84" stroke="white" stroke-width="10" stroke-linecap="round"/>
+      <line x1="84" y1="28" x2="28" y2="84" stroke="white" stroke-width="10" stroke-linecap="round"/>
+      <text x="540" y="1060" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="28" font-family="Arial" font-weight="bold">X - TWITTER</text>
     </svg>`,
   },
 

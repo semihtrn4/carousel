@@ -1,5 +1,5 @@
 // Unique identifier: CAROUSEL_STUDIO_HOME_001
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, FlatList, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Plus, Image as ImageIcon, Grid3X3, Layout, Film } from 'lucide-react-native';
@@ -14,9 +14,9 @@ const UNIQUE_HOME_MARKER = 'carousel_studio_home_001';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const CATEGORIES = [
-  { id: 'carousel', name: 'Carousel', icon: Layout },
-  { id: 'collage', name: 'Collage', icon: Grid3X3 },
-  { id: 'story', name: 'Story', icon: Film },
+  { id: 'carousel', name: 'Carousel', icon: Layout, ratio: 'portrait' },
+  { id: 'collage', name: 'Collage', icon: Grid3X3, ratio: 'square' },
+  { id: 'story', name: 'Story', icon: Film, ratio: 'story' },
 ];
 
 async function loadProjects(): Promise<Project[]> {
@@ -35,6 +35,11 @@ async function loadProjects(): Promise<Project[]> {
 export default function CarouselStudioHome() {
   const router = useRouter();
   const [selectedCategory, setSelectedCategory] = useState('carousel');
+  const [defaultSlides, setDefaultSlides] = useState(3);
+
+  useEffect(() => {
+    AsyncStorage.getItem('settings_default_slides').then(v => { if (v) setDefaultSlides(parseInt(v, 10)); });
+  }, []);
 
   const { data: projects = [] } = useQuery({
     queryKey: ['projects'],
@@ -44,16 +49,38 @@ export default function CarouselStudioHome() {
   const recentTemplates = TEMPLATES.slice(0, 5);
 
   const startNewProject = useCallback(() => {
-    router.push('/templates');
-  }, [router]);
+    const cat = CATEGORIES.find(c => c.id === selectedCategory);
+    const ratio = cat?.ratio || 'portrait';
+    router.push({
+      pathname: '/editor',
+      params: { slides: defaultSlides.toString(), ratio },
+    });
+  }, [router, selectedCategory, defaultSlides]);
 
   const openProject = useCallback((projectId: string) => {
     router.push(`/editor?projectId=${projectId}`);
   }, [router]);
 
   const useTemplate = useCallback((templateId: string) => {
-    router.push(`/editor?templateId=${templateId}`);
-  }, [router]);
+    const t = TEMPLATES.find(x => x.id === templateId);
+    router.push({
+      pathname: '/editor',
+      params: {
+        templateId,
+        slides: (t?.slides ?? defaultSlides).toString(),
+        ratio: t?.ratio || 'portrait',
+      },
+    });
+  }, [router, defaultSlides]);
+
+  const startBlankWithCategory = useCallback(() => {
+    const cat = CATEGORIES.find(c => c.id === selectedCategory);
+    const ratio = cat?.ratio || 'portrait';
+    router.push({
+      pathname: '/editor',
+      params: { slides: defaultSlides.toString(), ratio },
+    });
+  }, [router, selectedCategory, defaultSlides]);
 
   const formatDate = (timestamp: number) => {
     const date = new Date(timestamp);
@@ -93,6 +120,12 @@ export default function CarouselStudioHome() {
               );
             })}
           </View>
+          <TouchableOpacity style={styles.blankBtn} onPress={startBlankWithCategory}>
+            <Plus size={18} color={Colors.dark.background} />
+            <Text style={styles.blankBtnText}>
+              Blank Canvas · {CATEGORIES.find(c => c.id === selectedCategory)?.name} · {defaultSlides} slides
+            </Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.section}>
@@ -168,6 +201,8 @@ const styles = StyleSheet.create({
   categoryCardSelected: { backgroundColor: Colors.dark.accent, borderColor: Colors.dark.accent },
   categoryText: { fontSize: 13, fontWeight: '500', color: Colors.dark.text },
   categoryTextSelected: { color: Colors.dark.background },
+  blankBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: Colors.dark.accent, borderRadius: 14, paddingVertical: 14, marginTop: 12 },
+  blankBtnText: { fontSize: 15, fontWeight: '600', color: Colors.dark.background },
   templatesList: { gap: 12, paddingRight: 20 },
   templateCard: { width: 140 },
   templatePreview: { width: 140, height: 180, borderRadius: 12, justifyContent: 'flex-end', padding: 12 },

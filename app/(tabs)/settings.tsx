@@ -3,25 +3,16 @@ import { useState, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Palette, Grid3X3, Trash2, Info } from 'lucide-react-native';
+import { Grid3X3, Trash2, Info } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
 
 const UNIQUE_SETTINGS_MARKER = 'carousel_studio_settings_001';
 
-const RATIOS = [
-  { id: 'square', name: 'Square', label: '1:1', desc: 'Instagram feed' },
-  { id: 'portrait', name: 'Portrait', label: '4:5', desc: 'Best for engagement' },
-  { id: 'story', name: 'Story', label: '9:16', desc: 'Full screen story' },
-  { id: 'landscape', name: 'Landscape', label: '16:9', desc: 'Wide format' },
-];
-
 const SLIDE_OPTIONS = [2, 3, 4, 5, 10];
 
 export default function CarouselStudioSettings() {
-  const [defaultRatio, setDefaultRatio] = useState('portrait');
   const [defaultSlides, setDefaultSlides] = useState(3);
   const [autoSave, setAutoSave] = useState(true);
-  const [highQuality, setHighQuality] = useState(true);
 
   useEffect(() => {
     loadSettings();
@@ -29,14 +20,10 @@ export default function CarouselStudioSettings() {
 
   const loadSettings = async () => {
     try {
-      const r = await AsyncStorage.getItem('settings_default_ratio');
       const s = await AsyncStorage.getItem('settings_default_slides');
       const a = await AsyncStorage.getItem('settings_auto_save');
-      const q = await AsyncStorage.getItem('settings_high_quality');
-      if (r) setDefaultRatio(r);
       if (s) setDefaultSlides(parseInt(s, 10));
       if (a !== null) setAutoSave(a === 'true');
-      if (q !== null) setHighQuality(q === 'true');
     } catch (e) {
       console.error('Settings load error:', e);
     }
@@ -81,25 +68,6 @@ export default function CarouselStudioSettings() {
           <Text style={styles.sectionTitle}>Defaults</Text>
           <View style={styles.card}>
             <View style={styles.row}>
-              <Palette size={20} color={Colors.dark.textSecondary} />
-              <Text style={styles.rowLabel}>Default Aspect Ratio</Text>
-            </View>
-            <View style={styles.optionsRow}>
-              {RATIOS.map((r) => (
-                <TouchableOpacity
-                  key={r.id}
-                  style={[styles.ratioOption, defaultRatio === r.id && styles.ratioOptionActive]}
-                  onPress={() => { setDefaultRatio(r.id); saveSetting('default_ratio', r.id); }}
-                >
-                  <Text style={[styles.ratioLabel, defaultRatio === r.id && styles.ratioLabelActive]}>{r.label}</Text>
-                  <Text style={styles.ratioDesc}>{r.name}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          <View style={[styles.card, { marginTop: 12 }]}>
-            <View style={styles.row}>
               <Grid3X3 size={20} color={Colors.dark.textSecondary} />
               <Text style={styles.rowLabel}>Default Slide Count</Text>
             </View>
@@ -127,16 +95,6 @@ export default function CarouselStudioSettings() {
                 onValueChange={(v) => { setAutoSave(v); saveSetting('auto_save', v.toString()); }}
                 trackColor={{ false: Colors.dark.border, true: Colors.dark.accent }}
                 thumbColor={autoSave ? Colors.dark.background : Colors.dark.textMuted}
-              />
-            </View>
-            <View style={styles.divider} />
-            <View style={styles.toggleRow}>
-              <Text style={styles.toggleLabel}>High quality export</Text>
-              <Switch
-                value={highQuality}
-                onValueChange={(v) => { setHighQuality(v); saveSetting('high_quality', v.toString()); }}
-                trackColor={{ false: Colors.dark.border, true: Colors.dark.accent }}
-                thumbColor={highQuality ? Colors.dark.background : Colors.dark.textMuted}
               />
             </View>
           </View>
